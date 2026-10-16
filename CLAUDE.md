@@ -12,6 +12,7 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
 - Inventory / Payments: `docs/inventory-service.md`, `docs/payments-service.md` (domain, consumer'lar, kilit sırası, API, seed)
 - Testler ve garantiler: `docs/testing.md` (hangi test hangi garantiyi kanıtlıyor; entegrasyon testi yöntemi, beklenen gürültü)
 - Kararlar ve gerekçeleri: `docs/decisions.md` (ADR; bir kararı değiştirmeden önce oku ve kullanıcıya sor)
+- Gözlemlenebilirlik: `docs/observability.md` (trace/metrik/log, `_error` kuyrukları ve redrive)
 - Bilinen tuzaklar: `docs/troubleshooting.md` (build/test/çalıştırma garip davranırsa önce buraya bak)
 
 ## Değişmez teknik kurallar (değiştirmeden önce kullanıcıya sor)
@@ -26,7 +27,7 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
   private alanlar `_camelCase`, LF, BOM'suz UTF-8. Build 0 uyarı / 0 hata olmalı.
 - **Katmanlar:** `X.API → X.Infrastructure → X.Application → X.Domain`. Domain hiçbir projeye bağımlı değil;
   Application'da MassTransit abstraction'ları olabilir, EF olamaz. `Shared.Contracts` bağımlılıksız;
-  `BuildingBlocks.Messaging` ortak MassTransit/RabbitMQ/Outbox/retry konfigürasyonu; `BuildingBlocks.Web` ortak health
+  `BuildingBlocks.Messaging` ortak MassTransit/RabbitMQ/Outbox/retry konfigürasyonu; `BuildingBlocks.Observability` OpenTelemetry + log kurulumu (yalnızca API'ler referans verir); `BuildingBlocks.Web` ortak health
   endpoint'leri + `ProblemDetailsExceptionHandlerBase` (yalnızca FrameworkReference). Domain'ler contract'a bağımlı değil
   (ret/hata nedeni Domain enum'u, `ReasonCodes` eşlemesi Application'da).
 - **Servisler arası senkron HTTP YOK.** Event publish (fan-out), command send (sabit kuyruk: `QueueNames`).
@@ -57,6 +58,7 @@ DistributedSaga/
 │   ├── BuildingBlocks/
 │   │   ├── Shared.Contracts/          # Event & command sözleşmeleri (bağımlılıksız)
 │   │   ├── BuildingBlocks.Messaging/  # AddMessaging, QueueNames, CommandEndpoints, TransientDatabaseRetry, MoneyConventions, .env
+│   │   ├── BuildingBlocks.Observability/ # AddObservability: OpenTelemetry (trace/metrik), JSON log
 │   │   └── BuildingBlocks.Web/        # MapHealthEndpoints, ProblemDetailsExceptionHandlerBase
 │   └── Services/
 │       ├── Ordering/  Ordering.Domain · Ordering.Application · Ordering.Infrastructure · Ordering.API
@@ -66,6 +68,7 @@ DistributedSaga/
 │                     Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (→ Domain + Application + Messaging)
 │                     Shared.Contracts.Tests (sözleşme mimari testleri) · BuildingBlocks.Messaging.Tests (retry)
 ├── docs/                                        # Ayrıntılar (yukarıdaki listeye bak)
+├── scripts/verify-trace.sh                      # tek siparişin Jaeger'da 3 servisli TEK trace olduğunu doğrular
 ├── scripts/e2e.sh                               # 4 uçtan uca senaryo (dotnet run ya da --compose)
 ├── deploy/migrator/                             # EF migration bundle imajı + migrate.sh (init container)
 ├── deploy/postgres/init/01-init-databases.sh   # İlk açılışta DB + kullanıcıları oluşturur
@@ -155,8 +158,8 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [x] **Adım 5** — Entegrasyon/eşzamanlılık/hata testleri (Testcontainers, `tests/IntegrationTests`; Quartz entegrasyonu,
   stok/ödeme iadesi, 10 stoğa 50 paralel rezervasyon, Payments FaultInjection, outbox broker kesintisi); `docs/testing.md`
 
-- [ ] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar ✅ · 6b gözlemlenebilirlik · 6c CI · 6d README/LICENSE/secret taraması
+- [ ] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar ✅ · 6b gözlemlenebilirlik ✅ · 6c CI · 6d README/LICENSE/secret taraması
 
-Durum: build 0/0, 122 birim testi + 26 entegrasyon testi yeşil (Ordering 54, Inventory 19, Payments 20, Contracts 10, Messaging 19; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
+Durum: build 0/0, 125 birim testi + 26 entegrasyon testi yeşil (Ordering 55, Inventory 19, Payments 20, Contracts 10, Messaging 21; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
 
 Bir sonraki adıma kullanıcı açıkça söylemeden geçme.

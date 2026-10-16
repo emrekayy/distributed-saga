@@ -58,6 +58,9 @@ public static class MessagingServiceCollectionExtensions
                         h.Password(configuration.GetRequired("RABBITMQ_PASSWORD"));
                     });
 
+                // Tüm endpoint'ler (consumer + saga) için OrderId log scope'u; ConfigureEndpoints'ten önce eklenmeli.
+                cfg.UseConsumeFilter(typeof(OrderLogScopeFilter<>), context);
+
                 configureBus?.Invoke(context, cfg);
                 cfg.ConfigureEndpoints(context);
             });

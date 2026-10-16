@@ -100,3 +100,12 @@ compose'da API'ler `service_completed_successfully` ile bekler. **Demo bayraklar
 `InternalEndpoints:Enabled` (`/internal/*`) ortamdan bağımsızdır, varsayılan kapalıdır; Development ve compose demosunda açıktır.
 Production'da `InternalEndpoints` açılırsa startup'ta uyarı loglanır (kimlik doğrulamasız, yalnızca demo). `FaultInjection` compose'da
 kapalıdır ve Production'da açılamaz. Sonuç: e2e aynı doğrulamalarla compose stack'ine karşı koşar (`./scripts/e2e.sh --compose`).
+
+**ADR-023 — Gözlemlenebilirlik: OpenTelemetry (OTLP) + Jaeger + Prometheus, otomatik redrive yok.** → Trace Jaeger v2'ye
+(OTLP/HTTP), metrik Prometheus'un OTLP alıcısına gider; ikisi de opsiyonel `observability` profilindedir ve exporter yalnızca
+`OTEL_EXPORTER_OTLP_*` tanımlıysa kurulur (yerel `dotnet run` ve testler dışarıya hiçbir şey göndermez). Sinyale özel OTLP adresi
+kodda açıkça uygulanır (container'da yalnızca ortam değişkenine güvenmek varsayılan `localhost:4318`'e düştü). Tek trace: MassTransit
+trace context'ini outbox dahil taşır. `OrderId` log scope'u contract'lara interface eklenmeden bir consume filter ile açılır (ADR-006).
+`_error` kuyruk derinliği uygulamada gauge olarak yeniden hesaplanmaz; broker'ın `rabbitmq_prometheus` plugin'i kaynak gerçeğidir.
+Redrive otomatik değildir: zehirli mesajı körlemesine geri sürmek aynı hatayı döngüye sokar; operatör nedeni giderir ve
+`docs/observability.md`'deki shovel ile taşır.

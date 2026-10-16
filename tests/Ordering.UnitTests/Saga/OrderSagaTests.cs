@@ -35,6 +35,22 @@ public sealed class OrderSagaTests : OrderSagaFixture
     }
 
     [Fact]
+    public async Task Every_state_transition_is_logged_as_one_line_with_order_id()
+    {
+        var orderId = await SubmitOrderAsync();
+        await Harness.Bus.Publish(new StockReserved { OrderId = orderId, OccurredAt = DateTimeOffset.UtcNow });
+        await AssertStateAsync(orderId, Machine.AwaitingPayment);
+        await Harness.Bus.Publish(Completed(orderId));
+        await AssertStateAsync(orderId, Machine.Completed);
+
+        var lines = Logs.Messages.Where(m => m.Contains(orderId.ToString(), StringComparison.Ordinal)).ToList();
+
+        Assert.Contains($"Order {orderId} saga state: Initial -> AwaitingStock", lines);
+        Assert.Contains($"Order {orderId} saga state: AwaitingStock -> AwaitingPayment", lines);
+        Assert.Contains($"Order {orderId} saga state: AwaitingPayment -> Completed", lines);
+    }
+
+    [Fact]
     public async Task Payment_amount_comes_from_OrderSubmitted_total_not_recomputed()
     {
         var orderId = await SubmitOrderAsync(totalAmountOverride: 123.45m);

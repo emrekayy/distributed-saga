@@ -1,0 +1,17 @@
+# Servis metrikleri OTLP ile push edilir (--web.enable-otlp-receiver); burada yalnızca RabbitMQ scrape edilir.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: rabbitmq
+    # rabbitmq_prometheus plugin'i: kuyruk bazında rabbitmq_detailed_queue_messages_ready{queue="..."}
+    metrics_path: /metrics/detailed
+    params:
+      family: [queue_coarse_metrics]
+      vhost: [saga]
+    static_configs:
+      - targets: ["rabbitmq:15692"]

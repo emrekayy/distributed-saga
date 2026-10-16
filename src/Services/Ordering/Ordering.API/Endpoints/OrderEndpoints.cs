@@ -34,6 +34,7 @@ public static class OrderEndpoints
         [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
         SubmitOrderRequest request,
         SubmitOrderHandler handler,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(idempotencyKey))
@@ -50,6 +51,12 @@ public static class OrderEndpoints
 
         var result = await handler.HandleAsync(command, cancellationToken);
         var body = OrderResponse.From(result.Order);
+
+        var logger = loggerFactory.CreateLogger("Ordering.API.Orders");
+        using (logger.BeginScope("OrderId:{OrderId}", body.Id))
+        {
+            logger.LogInformation("Order {OrderId} submitted (created: {Created})", body.Id, result.Created);
+        }
 
         return result.Created
             ? Results.Accepted($"/orders/{body.Id}", body)

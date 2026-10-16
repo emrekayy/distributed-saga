@@ -2,6 +2,7 @@ using BuildingBlocks.Messaging;
 using MassTransit.Testing;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Ordering.Application.Orders;
 using Ordering.Application.Saga;
 using Ordering.Domain.Orders;
@@ -25,6 +26,8 @@ public abstract class OrderSagaFixture : IAsyncLifetime
 
     protected InMemoryOrderStore Orders { get; } = new();
 
+    protected ListLoggerProvider Logs { get; } = new();
+
     protected ITestHarness Harness { get; private set; } = null!;
 
     protected ISagaStateMachineTestHarness<OrderStateMachine, OrderState> Saga { get; private set; } = null!;
@@ -40,6 +43,7 @@ public abstract class OrderSagaFixture : IAsyncLifetime
 
         var services = new ServiceCollection()
             .AddSingleton(TimeProvider.System)
+            .AddLogging(b => b.AddProvider(Logs))
             .AddSingleton<IOrderRepository>(Orders)
             .Configure<OrderSagaOptions>(o => o.PaymentTimeout = PaymentTimeout);
         services.AddMassTransitTestHarness(x =>
