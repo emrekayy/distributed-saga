@@ -1,4 +1,5 @@
 using MassTransit;
+using Order.Application.Saga;
 using Shared.Contracts.Common;
 using Shared.Contracts.Orders.Events;
 using Shared.Contracts.Payments.Events;
@@ -17,10 +18,11 @@ public class OrderSagaIgnoreMatrixTests : OrderSagaFixture
     private static readonly Dictionary<string, string[]> _handled = new()
     {
         ["AwaitingStock"] = [nameof(StockReserved), nameof(StockReservationFailed)],
-        ["AwaitingPayment"] = [nameof(PaymentCompleted), nameof(PaymentFailed)],
-        ["Compensating"] = [nameof(StockReleased)],
+        ["AwaitingPayment"] = [nameof(PaymentCompleted), nameof(PaymentFailed), nameof(PaymentTimeoutExpired)],
+        // Geç PaymentCompleted → RefundPayment; PaymentRefunded → RefundedAt kaydı (state değişmez).
+        ["Compensating"] = [nameof(StockReleased), nameof(PaymentCompleted), nameof(PaymentRefunded)],
         ["Completed"] = [],
-        ["Failed"] = [],
+        ["Failed"] = [nameof(PaymentCompleted), nameof(PaymentRefunded)],
     };
 
     public static TheoryData<string> States => new(_handled.Keys);
@@ -111,6 +113,8 @@ public class OrderSagaIgnoreMatrixTests : OrderSagaFixture
         {
             OrderId = orderId, Amount = 399.90m, Currency = "TRY", OccurredAt = now,
         }));
+        // Unschedule ile yarışan geç bir timeout'u simüle eder.
+        yield return (nameof(PaymentTimeoutExpired), () => PublishAndWaitAsync(new PaymentTimeoutExpired { OrderId = orderId }));
     }
 
     private static PaymentCompleted PaymentCompleted(Guid orderId) => new()

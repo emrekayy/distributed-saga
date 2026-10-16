@@ -28,6 +28,14 @@ public sealed class OrderState : SagaStateMachineInstance
 
     public string? FailureReason { get; set; }
 
+    /// <summary>Schedule edilen PaymentTimeoutExpired'ın token'ı (iptal için).</summary>
+    public Guid? PaymentTimeoutTokenId { get; set; }
+
+    /// <summary>Timeout sonrası geç gelen PaymentCompleted için RefundPayment gönderildi mi.</summary>
+    public DateTimeOffset? RefundRequestedAt { get; set; }
+
+    public DateTimeOffset? RefundedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

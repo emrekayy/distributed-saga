@@ -14,7 +14,8 @@ using Order.Domain.Orders;
 
 /// <summary>
 /// Saga'yı in-memory transport + in-memory saga repository ile çalıştırır. Order aggregate'i fake
-/// repository'de tutulur; activity'ler onu günceller.
+/// repository'de tutulur; activity'ler onu günceller. Zamanlayıcı olarak Quartz yerine in-memory delayed
+/// scheduler kullanılır: saga arkadaki scheduler'ı bilmez. (Quartz kurulumu Adım 5 entegrasyon testinde.)
 /// </summary>
 public abstract class OrderSagaFixture : IAsyncLifetime
 {
@@ -31,19 +32,27 @@ public abstract class OrderSagaFixture : IAsyncLifetime
 
     protected OrderStateMachine Machine { get; private set; } = null!;
 
+    /// <summary>Varsayılan: testler sırasında hiç dolmayacak kadar uzun. Timeout testleri kısaltır.</summary>
+    protected virtual TimeSpan PaymentTimeout => TimeSpan.FromMinutes(5);
+
     public async Task InitializeAsync()
     {
         CommandEndpoints.Map();
 
         var services = new ServiceCollection()
             .AddSingleton(TimeProvider.System)
-            .AddSingleton<IOrderRepository>(Orders);
-        ConfigureServices(services);
+            .AddSingleton<IOrderRepository>(Orders)
+            .Configure<OrderSagaOptions>(o => o.PaymentTimeout = PaymentTimeout);
         services.AddMassTransitTestHarness(x =>
         {
             x.SetTestTimeouts(testTimeout: TimeSpan.FromSeconds(10));
+            x.AddDelayedMessageScheduler();
             x.AddSagaStateMachine<OrderStateMachine, OrderState>().InMemoryRepository();
-            ConfigureBus(x);
+            x.UsingInMemory((context, cfg) =>
+            {
+                cfg.UseDelayedMessageScheduler();
+                cfg.ConfigureEndpoints(context);
+            });
         });
 
         _provider = services.BuildServiceProvider(validateScopes: true);
@@ -54,14 +63,6 @@ public abstract class OrderSagaFixture : IAsyncLifetime
     }
 
     public async Task DisposeAsync() => await _provider.DisposeAsync();
-
-    protected virtual void ConfigureServices(IServiceCollection services)
-    {
-    }
-
-    protected virtual void ConfigureBus(IBusRegistrationConfigurator configurator)
-    {
-    }
 
     /// <summary>Fake repository'ye Pending sipariş koyar ve OrderSubmitted publish eder → AwaitingStock.</summary>
     protected async Task<Guid> SubmitOrderAsync(decimal? totalAmountOverride = null)
@@ -123,6 +124,9 @@ public abstract class OrderSagaFixture : IAsyncLifetime
         var found = await Saga.Exists(orderId, _ => expected);
         Assert.True(found.HasValue, $"Saga {orderId} did not reach state {expected.Name}.");
     }
+
+    protected OrderState GetSaga(Guid orderId) =>
+        Saga.Sagas.Contains(orderId) ?? throw new InvalidOperationException($"Saga {orderId} not found.");
 
     protected Order GetOrder(Guid orderId) =>
         Orders.Committed.Single(o => o.Id == orderId);
