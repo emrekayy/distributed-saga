@@ -10,9 +10,9 @@ namespace Shared.Contracts.Tests;
 /// </summary>
 public class ContractArchitectureTests
 {
-    private const string RootNamespace = "Shared.Contracts";
-    private const string CommonNamespace = RootNamespace + ".Common";
-    private const string ProjectRelativePath = "src/BuildingBlocks/Shared.Contracts";
+    private const string _rootNamespace = "Shared.Contracts";
+    private const string _commonNamespace = _rootNamespace + ".Common";
+    private const string _projectRelativePath = "src/BuildingBlocks/Shared.Contracts";
 
     private static readonly string[] _eventSuffixes =
         ["Reserved", "Completed", "Failed", "Released", "Submitted", "Refunded"];
@@ -33,7 +33,7 @@ public class ContractArchitectureTests
     public void Project_has_no_package_or_project_references()
     {
         var root = FindRepositoryRoot();
-        var projectDir = Path.Combine(root, ProjectRelativePath);
+        var projectDir = Path.Combine(root, _projectRelativePath);
 
         var csproj = XDocument.Load(Path.Combine(projectDir, "Shared.Contracts.csproj"));
         var references = csproj.Descendants()
@@ -130,7 +130,7 @@ public class ContractArchitectureTests
     {
         var violations = PublicTypes
             .Except(Messages)
-            .Where(t => t.Namespace != CommonNamespace)
+            .Where(t => t.Namespace != _commonNamespace)
             .Select(t => t.FullName)
             .ToList();
 
@@ -142,7 +142,7 @@ public class ContractArchitectureTests
     {
         string[] areas = ["Orders", "Stock", "Payments"];
         var allowed = areas
-            .SelectMany(a => new[] { $"{RootNamespace}.{a}.Commands", $"{RootNamespace}.{a}.Events" })
+            .SelectMany(a => new[] { $"{_rootNamespace}.{a}.Commands", $"{_rootNamespace}.{a}.Events" })
             .ToHashSet(StringComparer.Ordinal);
 
         var violations = Messages

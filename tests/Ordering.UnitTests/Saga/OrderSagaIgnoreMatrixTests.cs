@@ -62,7 +62,10 @@ public class OrderSagaIgnoreMatrixTests : OrderSagaFixture
             case "Failed":
                 await PublishAndWaitAsync(new StockReservationFailed
                 {
-                    OrderId = orderId, ReasonCode = ReasonCodes.InsufficientStock, Reason = "none", OccurredAt = now,
+                    OrderId = orderId,
+                    ReasonCode = ReasonCodes.InsufficientStock,
+                    Reason = "none",
+                    OccurredAt = now,
                 });
                 break;
             default:
@@ -75,7 +78,10 @@ public class OrderSagaIgnoreMatrixTests : OrderSagaFixture
                 {
                     await PublishAndWaitAsync(new PaymentFailed
                     {
-                        OrderId = orderId, ReasonCode = ReasonCodes.PaymentDeclined, Reason = "declined", OccurredAt = now,
+                        OrderId = orderId,
+                        ReasonCode = ReasonCodes.PaymentDeclined,
+                        Reason = "declined",
+                        OccurredAt = now,
                     });
                 }
 
@@ -101,17 +107,26 @@ public class OrderSagaIgnoreMatrixTests : OrderSagaFixture
         yield return (nameof(StockReserved), () => PublishAndWaitAsync(new StockReserved { OrderId = orderId, OccurredAt = now }));
         yield return (nameof(StockReservationFailed), () => PublishAndWaitAsync(new StockReservationFailed
         {
-            OrderId = orderId, ReasonCode = ReasonCodes.InsufficientStock, Reason = "late", OccurredAt = now,
+            OrderId = orderId,
+            ReasonCode = ReasonCodes.InsufficientStock,
+            Reason = "late",
+            OccurredAt = now,
         }));
         yield return (nameof(StockReleased), () => PublishAndWaitAsync(new StockReleased { OrderId = orderId, OccurredAt = now }));
         yield return (nameof(PaymentCompleted), () => PublishAndWaitAsync(PaymentCompleted(orderId)));
         yield return (nameof(PaymentFailed), () => PublishAndWaitAsync(new PaymentFailed
         {
-            OrderId = orderId, ReasonCode = ReasonCodes.PaymentDeclined, Reason = "late", OccurredAt = now,
+            OrderId = orderId,
+            ReasonCode = ReasonCodes.PaymentDeclined,
+            Reason = "late",
+            OccurredAt = now,
         }));
         yield return (nameof(PaymentRefunded), () => PublishAndWaitAsync(new PaymentRefunded
         {
-            OrderId = orderId, Amount = 399.90m, Currency = "TRY", OccurredAt = now,
+            OrderId = orderId,
+            Amount = 399.90m,
+            Currency = "TRY",
+            OccurredAt = now,
         }));
         // Unschedule ile yarışan geç bir timeout'u simüle eder.
         yield return (nameof(PaymentTimeoutExpired), () => PublishAndWaitAsync(new PaymentTimeoutExpired { OrderId = orderId }));

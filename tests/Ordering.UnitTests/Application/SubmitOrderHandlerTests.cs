@@ -67,7 +67,7 @@ public sealed class SubmitOrderHandlerTests : IAsyncLifetime
     public async Task Concurrent_request_with_same_key_returns_the_winner()
     {
         var winner = Order.Create(
-            Guid.NewGuid(), Customer, "TRY", [new OrderItem(ProductA, 2, 150m), new OrderItem(ProductB, 1, 99.90m)],
+            Guid.NewGuid(), _customer, "TRY", [new OrderItem(_productA, 2, 150m), new OrderItem(_productB, 1, 99.90m)],
             "key-1", RequestHasher.Compute(Command("key-1")), DateTimeOffset.UtcNow);
         _store.ConcurrentWinner = winner;
 
@@ -84,14 +84,14 @@ public sealed class SubmitOrderHandlerTests : IAsyncLifetime
         Assert.Equal(0, _store.SaveCount);
     }
 
-    private static readonly Guid Customer = Guid.Parse("6f1c2b8e-3a4d-4f5e-9a7b-1c2d3e4f5a6b");
-    private static readonly Guid ProductA = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000001");
-    private static readonly Guid ProductB = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000002");
+    private static readonly Guid _customer = Guid.Parse("6f1c2b8e-3a4d-4f5e-9a7b-1c2d3e4f5a6b");
+    private static readonly Guid _productA = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000001");
+    private static readonly Guid _productB = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000002");
 
     private static SubmitOrderCommand Command(string key, int quantity = 2, bool reverseItems = false)
     {
-        SubmitOrderItem[] items = [new(ProductA, quantity, 150m), new(ProductB, 1, 99.90m)];
-        return new SubmitOrderCommand(Customer, "TRY", reverseItems ? Enumerable.Reverse(items).ToArray() : items, key);
+        SubmitOrderItem[] items = [new(_productA, quantity, 150m), new(_productB, 1, 99.90m)];
+        return new SubmitOrderCommand(_customer, "TRY", reverseItems ? Enumerable.Reverse(items).ToArray() : items, key);
     }
 
     private async Task<SubmitOrderResult> HandleAsync(SubmitOrderCommand command)
