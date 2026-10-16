@@ -67,6 +67,8 @@ Instance'ı olmayan bir event (bilinmeyen OrderId) ise bilinçli olarak fault �
   EF migration (`AddPaymentTimeoutScheduling`) ile kurulur. Saga tarafı: `AddPublishMessageScheduler` +
   `AddQuartzConsumers` + `UsePublishMessageScheduler`.
 - `PaymentTimeoutExpired` saga'nın kendine gönderdiği iç mesajdır (Ordering.Application'da, Shared.Contracts'ta değil).
+  Quartz bekleyen job'da mesaj tipini sakladığı için adı sabittir (ADR-019): URN
+  `urn:message:ordering:payment-timeout-expired`, exchange `ordering.payment-timeout-expired`.
 - **`PaymentTimeout` (varsayılan 30 sn, `OrderSaga:PaymentTimeout`) iki katmanlıdır:**
   1. `ProcessPayment` **TimeToLive = PaymentTimeout** ile gönderilir: timeout'tan sonra kuyrukta bekleyen bayat komut
      Payments'a hiç ulaşmaz (RabbitMQ siler) → gereksiz tahsilat + iade sayısı azalır.

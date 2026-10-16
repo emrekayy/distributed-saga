@@ -32,7 +32,7 @@ Shared.Contracts/
 | `OrderFailed` | Event | Order saga | Ordering servisi (sipariş durumu), dış dinleyiciler |
 | `RefundPayment` | Command (compensation) | Order saga (timeout sonrası geç `PaymentCompleted`) | Payments servisi |
 | `PaymentRefunded` | Event | Payments servisi | Order saga (`RefundedAt` kaydı) |
-| `PaymentTimeoutExpired` *(iç, Shared.Contracts'ta değil)* | Schedule | Order saga → Quartz | Order saga |
+| `PaymentTimeoutExpired` *(iç, Shared.Contracts'ta değil; adı sabit: `ordering.payment-timeout-expired`)* | Schedule | Order saga → Quartz | Order saga |
 
 ## Akışlar
 
@@ -48,6 +48,9 @@ Sabit, wire contract'ın parçası: `BuildingBlocks.Messaging.QueueNames` → `s
 `payment-process-payment`, `payment-refund-payment`. `CommandEndpoints.Map()` command tiplerini bu kuyruklara eşler
 (`EndpointConvention`); saga `Send`'i adres vermeden çağırır, Application katmanı kuyruk adlarını bilmez.
 Inventory/Payments consumer endpoint'leri bu adlarla açılmalı. Saga endpoint'i: `order-state` (OrderState tip adından).
+
+Contract dışı, kalıcı/schedule edilen mesajların URN ve exchange adı attribute ile sabittir (ADR-019):
+`PaymentTimeoutExpired` → `urn:message:ordering:payment-timeout-expired` / `ordering.payment-timeout-expired`.
 
 ## Sözleşme kuralları
 
