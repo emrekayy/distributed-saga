@@ -28,6 +28,7 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
 - **Servisler arası senkron HTTP YOK.** Event publish (fan-out), command send (sabit kuyruk: `QueueNames`).
 - **Namespace = wire contract:** MassTransit exchange adını tam tip adından üretir. Shared.Contracts namespace'leri,
   tip adları ve `QueueNames` değiştirilmez; contract'a yalnızca optional (non-required) alan eklenir.
+  Contract dışı, kalıcı/schedule edilen mesajlar `[MessageUrn]` + `[EntityName]` ile sabitlenir (ADR-019).
 - **Idempotency:** MessageId tekrarı MassTransit Inbox (`InboxState`); üstüne iş anahtarları (unique index:
   Payments `OrderId`, Inventory rezervasyon `OrderId`). Kendi "ProcessedMessages" tablonu yazma.
   Stok rezervasyonu ya hep ya hiç. Compensation komutları (`ReleaseStock`, `RefundPayment`) iş açısından başarısız
@@ -129,7 +130,7 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [ ] **Adım 4** — Inventory/Payments consumer'ları (idempotent, outbox)
 - [ ] **Adım 5** — Hata ve compensation testleri (Testcontainers, Quartz entegrasyonu, stok/ödeme iadesi)
 
-Durum: build 0/0, 68 test yeşil (Ordering 50, Contracts 10, Messaging 8).
+Durum: build 0/0, 72 test yeşil (Ordering 54, Contracts 10, Messaging 8).
 
 Adım 4 notları: consumer'lar `QueueNames` kuyruklarını dinler; `AddMessaging<TDbContext>` + `TransientDatabaseRetry`;
 iş anahtarı `OrderId` unique; `RefundPayment` → tahsilat yoksa/zaten iade edildiyse de `PaymentRefunded`

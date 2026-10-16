@@ -21,7 +21,7 @@ senkron HTTP yok, tüm iletişim RabbitMQ event/command. → Saga orchestration 
 
 **ADR-006 — Namespace = wire contract.** MassTransit exchange adını tam tip adından üretir. → Shared.Contracts
 namespace/tip adları değiştirilmez; servis adları (Ordering/Inventory/Payments) contract alan adlarından bağımsızdır.
-→ Servis yeniden adlandırması yalnızca iç mesajların (örn. `PaymentTimeoutExpired`) exchange adını değiştirir.
+→ Contract dışındaki mesajların adı varsayılan olarak namespace'ten türer; kalıcı olanlar ADR-019 ile sabitlenir.
 
 **ADR-007 — Idempotency: Inbox + iş anahtarları.** → MessageId tekrarı MassTransit `InboxState`; saga'nın yeni
 MessageId ile tekrar gönderdiği komutlar için iş anahtarı unique index (Payments: OrderId, Inventory: rezervasyon OrderId).
@@ -58,3 +58,12 @@ aynı anahtarlar env var. → `appsettings.json`'da secret yok.
 
 **ADR-018 — Saga testlerinde in-memory delayed scheduler.** Quartz `SystemTime` ile test kırılgan ve testleri seri
 çalıştırır. → Saga scheduler'dan bağımsız test edilir (250 ms timeout); Quartz Adım 5 entegrasyon testinde.
+
+**ADR-019 — Contract dışı, kalıcı/schedule edilen mesajların adı sabitlenir.** MassTransit mesaj tipini (URN) ve
+exchange adını varsayılan olarak CLR namespace'inden türetir; Quartz bekleyen job'larda mesaj tipini saklar
+(`qrtz_triggers.job_data` → `MessageType`). Namespace değişirse (örn. Order → Ordering yeniden adlandırması) bekleyen
+timeout'lar yanlış exchange'e gider / deserialize edilemez. → Shared.Contracts dışındaki, kalıcı olarak saklanan ya da
+schedule edilen her mesaj `[MessageUrn("<servis>:<kebab-ad>")]` ve `[EntityName("<servis>.<kebab-ad>")]` ile sabitlenir
+(ilk örnek: `PaymentTimeoutExpired` → `urn:message:ordering:payment-timeout-expired`, exchange
+`ordering.payment-timeout-expired`). → Bu tipler namespace'ten bağımsız taşınabilir; adları wire contract gibi
+değiştirilmez ve testle korunur (`InternalMessageNameTests`). Shared.Contracts mesajları sabitlenmez (ADR-006).
