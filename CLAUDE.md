@@ -9,6 +9,7 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
 - Mesaj akışı ve contract kuralları: `docs/messaging.md` (contract'lara/kuyruk adlarına dokunmadan önce oku)
 - Saga: `docs/saga.md` (state diyagramı, geçiş matrisi, timeout/refund, concurrency; saga'yı değiştirmeden önce oku)
 - Ordering servisi: `docs/ordering-service.md` (API, domain kuralları, persistence, migration/konfigürasyon)
+- Inventory / Payments: `docs/inventory-service.md`, `docs/payments-service.md` (domain, consumer'lar, kilit sırası, API, seed)
 - Kararlar ve gerekçeleri: `docs/decisions.md` (ADR; bir kararı değiştirmeden önce oku ve kullanıcıya sor)
 - Bilinen tuzaklar: `docs/troubleshooting.md` (build/test/çalıştırma garip davranırsa önce buraya bak)
 
@@ -24,7 +25,9 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
   private alanlar `_camelCase`, LF, BOM'suz UTF-8. Build 0 uyarı / 0 hata olmalı.
 - **Katmanlar:** `X.API → X.Infrastructure → X.Application → X.Domain`. Domain hiçbir projeye bağımlı değil;
   Application'da MassTransit abstraction'ları olabilir, EF olamaz. `Shared.Contracts` bağımlılıksız;
-  `BuildingBlocks.Messaging` ortak MassTransit/RabbitMQ/Outbox/retry konfigürasyonu.
+  `BuildingBlocks.Messaging` ortak MassTransit/RabbitMQ/Outbox/retry konfigürasyonu; `BuildingBlocks.Web` ortak health
+  endpoint'leri + `ProblemDetailsExceptionHandlerBase` (yalnızca FrameworkReference). Domain'ler contract'a bağımlı değil
+  (ret/hata nedeni Domain enum'u, `ReasonCodes` eşlemesi Application'da).
 - **Servisler arası senkron HTTP YOK.** Event publish (fan-out), command send (sabit kuyruk: `QueueNames`).
 - **Namespace = wire contract:** MassTransit exchange adını tam tip adından üretir. Shared.Contracts namespace'leri,
   tip adları ve `QueueNames` değiştirilmez; contract'a yalnızca optional (non-required) alan eklenir.
@@ -35,6 +38,10 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
   olamaz: kayıt yoksa/zaten yapılmışsa da başarı event'i publish edilir.
 - **Retry:** consumer/saga endpoint'lerinde `UseMessageRetry(r => r.UseTransientDatabaseRetry(<domain exception>))`
   dışta, `UseEntityFrameworkOutbox<TDbContext>` içte.
+- **Eşzamanlılık:** Ordering optimistic (xmin) + retry; Inventory/Payments pessimistic (`SELECT … FOR UPDATE`, Inventory'de
+  `ProductId` sırasıyla) ve outbox **ReadCommitted** (`AddMessaging(outboxIsolationLevel:)`). RepeatableRead + `FOR UPDATE`
+  yapma (40001 retry fırtınası). ADR-020. Hatalı girdi exception değil, kaydedilmiş `VALIDATION_ERROR` sonucudur.
+- **Para:** tüm servislerde `numeric(19,4)`; DbContext `ConfigureConventions` içinde `UseMoneyPrecision()`, tek tek `HasPrecision` yok.
 - **Zamanlayıcı:** MassTransit.Quartz + Postgres job store (`quartz` şeması). RabbitMQ delayed-exchange kullanılmaz.
 - **Migration:** startup'ta yalnızca Development'ta; production'da `dotnet ef migrations bundle`. Secret'lar `.env`'de.
 
@@ -45,7 +52,8 @@ DistributedSaga/
 ├── src/
 │   ├── BuildingBlocks/
 │   │   ├── Shared.Contracts/          # Event & command sözleşmeleri (bağımlılıksız)
-│   │   └── BuildingBlocks.Messaging/  # AddMessaging, QueueNames, CommandEndpoints, TransientDatabaseRetry, .env
+│   │   ├── BuildingBlocks.Messaging/  # AddMessaging, QueueNames, CommandEndpoints, TransientDatabaseRetry, MoneyConventions, .env
+│   │   └── BuildingBlocks.Web/        # MapHealthEndpoints, ProblemDetailsExceptionHandlerBase
 │   └── Services/
 │       ├── Ordering/  Ordering.Domain · Ordering.Application · Ordering.Infrastructure · Ordering.API
 │       ├── Inventory/ Inventory.Domain · Inventory.Application · Inventory.Infrastructure · Inventory.API
@@ -53,6 +61,7 @@ DistributedSaga/
 ├── tests/            Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (→ Domain + Application + Messaging)
 │                     Shared.Contracts.Tests (sözleşme mimari testleri) · BuildingBlocks.Messaging.Tests (retry)
 ├── docs/                                        # Ayrıntılar (yukarıdaki listeye bak)
+├── scripts/e2e.sh                               # 4 uçtan uca senaryo (gerçek altyapı, 3 servis)
 ├── deploy/postgres/init/01-init-databases.sh   # İlk açılışta DB + kullanıcıları oluşturur
 ├── docker-compose.yml · .env.example (.env git'e girmez)
 ├── Directory.Build.props · Directory.Packages.props · global.json · .editorconfig
@@ -91,6 +100,12 @@ curl localhost:5100/orders/<id>
 curl localhost:5100/internal/orders/<id>/saga               # yalnızca Development: saga state
 curl localhost:5100/health/ready                           # Postgres + RabbitMQ
 
+# Inventory (5200) · Payments (5300): Development'ta migration + seed startup'ta; sonuçlar için dev-only
+# GET /internal/reservations/{orderId} · GET /internal/payments/{orderId}
+dotnet run --project src/Services/Inventory/Inventory.API
+dotnet run --project src/Services/Payments/Payments.API
+./scripts/e2e.sh                    # build + 3 servis + 4 senaryo; çıkışta servisleri kapatır, hatada log tail basar
+
 # Altyapı
 docker compose up -d                # postgres + rabbitmq
 docker compose ps                   # ikisi de (healthy) olmalı
@@ -127,13 +142,10 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [x] **Adım 2** — Shared.Contracts (event/command sözleşmeleri + mimari testler)
 - [x] **Adım 3** — Ordering servisi + Saga (state machine, EF saga repository, outbox, Quartz timeout, refund)
 - [x] Servis adları: Order/Stock/Payment → Ordering/Inventory/Payments (contract namespace'leri değişmedi)
-- [ ] **Adım 4** — Inventory/Payments consumer'ları (idempotent, outbox)
-- [ ] **Adım 5** — Hata ve compensation testleri (Testcontainers, Quartz entegrasyonu, stok/ödeme iadesi)
+- [x] **Adım 4** — Inventory/Payments consumer'ları (idempotent, outbox); 4c: `scripts/e2e.sh` + README "Demo"
+- [ ] **Adım 5** — Hata ve compensation testleri (Testcontainers, Quartz entegrasyonu, stok/ödeme iadesi,
+  eşzamanlılık: 10 stoğa 50 paralel rezervasyon, hata enjeksiyonu)
 
-Durum: build 0/0, 72 test yeşil (Ordering 54, Contracts 10, Messaging 8).
-
-Adım 4 notları: consumer'lar `QueueNames` kuyruklarını dinler; `AddMessaging<TDbContext>` + `TransientDatabaseRetry`;
-iş anahtarı `OrderId` unique; `RefundPayment` → tahsilat yoksa/zaten iade edildiyse de `PaymentRefunded`
-(Amount = fiilen iade edilen). Ayrıntı: `docs/messaging.md`.
+Durum: build 0/0, 113 test yeşil (Ordering 54, Inventory 19, Payments 20, Contracts 10, Messaging 10); e2e 4/4 senaryo geçti.
 
 Bir sonraki adıma kullanıcı açıkça söylemeden geçme.
