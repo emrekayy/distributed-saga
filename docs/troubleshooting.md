@@ -19,9 +19,16 @@
   yeniden `dotnet build` almadan çalıştırırsan "No migrations were found in assembly" görür ve tablolar oluşmaz.
 - **`FOR UPDATE` ve izolasyon:** Pessimistic kilit kullanan servislerin outbox'ı ReadCommitted olmalı (ADR-020);
   RepeatableRead'de bekleyen transaction `40001` ile retry'a düşer.
-- **Entegrasyon testleri hiç başlamıyor / takılıyor:** Testcontainers imaj çekmeden önce `docker-credential-desktop get`
-  çağırır; etkileşimsiz ortamda (anahtarlık izni) bu süreç sonsuza kadar bekleyebilir. Çözüm: boş bir Docker config dizini
-  verin: `mkdir -p /tmp/dockercfg && echo '{"auths":{}}' > /tmp/dockercfg/config.json` ve `DOCKER_CONFIG=/tmp/dockercfg dotnet test …`.
+- **Docker credential helper (entegrasyon testleri, `docker build`, `docker compose up --build`, image pull):** Testcontainers ve
+  Docker imaj çekmeden önce `docker-credential-desktop get` çağırır; etkileşimsiz ortamda (anahtarlık izni) bu süreç sonsuza kadar
+  bekleyebilir. Hem testler hem Docker build/pull adımları için çözüm aynı: boş bir Docker config dizini verin
+  (`mkdir -p /tmp/dockercfg && echo '{"auths":{}}' > /tmp/dockercfg/config.json`) ve `DOCKER_CONFIG=/tmp/dockercfg dotnet test …`
+  / `DOCKER_CONFIG=/tmp/dockercfg docker compose --profile app up -d --build` kullanın. Bu dizin `~/.docker/cli-plugins`'i gizler:
+  buildx/compose "legacy builder" uyarısıyla yavaşlarsa `ln -s ~/.docker/cli-plugins /tmp/dockercfg/cli-plugins` ekleyin.
+- **`docker compose --profile app up --build` ilk seferde dakikalar sürer:** SDK imajı (~1.3 GB) çekilir ve migrator üç self-contained
+  bundle derler; sonraki build'ler katman cache'inden gelir.
+- **Chiseled imajda `docker exec … sh` / `curl` çalışmaz:** shell yok. Sağlık için `docker inspect -f '{{.State.Health.Status}}' <ad>`
+  ya da host'tan `curl localhost:5100/health/ready`; imaj içinde probe: `dotnet Ordering.API.dll --health-probe http://localhost:8080/health/ready`.
 - **Entegrasyon testleri tek collection'dır:** Quartz scheduler adı process genelinde tekil (`order-service`), process'te tek
   Ordering host'u olabilir. Test host'ları `Testing` ortamında çalışır (`.env`, startup migration/seed yok); ayarlar bellek içi
   konfigürasyondan gelir, bu yüzden connection string'ler DI zamanında çözülür (yoksa override'lar geç kalır).

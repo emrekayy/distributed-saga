@@ -67,12 +67,18 @@ public static class DependencyInjection
         }
     }
 
-    /// <summary>Yalnızca Development'ta çağrılır; production'da migration ayrı bir adımdır.</summary>
-    public static async Task MigrateAndSeedPaymentDatabaseAsync(this IServiceProvider services)
+    /// <summary>Yalnızca Development'ta çağrılır; production'da migration ayrı bir adımdır (migration bundle).</summary>
+    public static async Task MigratePaymentDatabaseAsync(this IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
         await db.Database.MigrateAsync();
-        await PaymentSeeder.SeedAsync(db);
+    }
+
+    /// <summary>Demo verisi; yalnızca <c>Seed:Enabled</c> açıkken çağrılır. İdempotent.</summary>
+    public static async Task SeedPaymentDatabaseAsync(this IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        await PaymentSeeder.SeedAsync(scope.ServiceProvider.GetRequiredService<PaymentDbContext>());
     }
 }

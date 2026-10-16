@@ -2,8 +2,14 @@
 # =============================================================================
 #  Uçtan uca senaryolar (gerçek altyapı, üç servis birlikte).
 #
-#  Önkoşul : docker compose up -d (postgres + rabbitmq healthy), .env mevcut, curl + jq + uuidgen
-#  Çalıştır: ./scripts/e2e.sh
+#  Önkoşul : .env mevcut, curl + jq + uuidgen + docker
+#  Çalıştır: ./scripts/e2e.sh            # dotnet run modu: docker compose up -d (postgres + rabbitmq healthy) gerekir
+#            ./scripts/e2e.sh --compose  # compose modu: tüm stack container olarak (Production ortamı, migrator ile)
+#
+#  --compose: "docker compose --profile app up -d --build --wait" ile stack'i kurar/günceller ve KAPATMAZ
+#  (açık kalır, Jaeger/RabbitMQ UI'dan bakabilirsiniz; kapatmak için "docker compose --profile app down").
+#  Senaryo 4'te Payments "docker compose stop/start payments-api" ile durdurulur. Hata durumunda
+#  "docker compose logs --tail 30" basılır. Docker credential helper takılırsa docs/troubleshooting.md.
 #
 #  Script üç servisi (Ordering 5100, Inventory 5200, Payments 5300) derlenmiş çıktıdan arka planda başlatır,
 #  log'ları .e2e/ altına yazar ve çıkarken (başarılı ya da başarısız) hepsini kapatır. Başarısız olursa
@@ -14,6 +20,13 @@
 #  macOS bash 3.2 uyumludur (associative array / mapfile yok).
 # =============================================================================
 set -euo pipefail
+
+COMPOSE_MODE=0
+case "${1:-}" in
+  "") ;;
+  --compose) COMPOSE_MODE=1 ;;
+  *) echo "kullanım: $0 [--compose]" >&2; exit 2 ;;
+esac
 
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
@@ -50,8 +63,15 @@ service_port() {
   esac
 }
 
+compose() { docker compose --profile app "$@"; }
+compose_service() { echo "$(echo "$1" | tr '[:upper:]' '[:lower:]')-api"; }
+
 start_service() {
   local name="$1" port dir
+  if [ "$COMPOSE_MODE" = 1 ]; then
+    compose start "$(compose_service "$name")" >/dev/null
+    return 0
+  fi
   port="$(service_port "$name")"
   dir="$(service_dir "$name")"
   (
@@ -66,6 +86,10 @@ start_service() {
 
 stop_service() {
   local name="$1" file pid
+  if [ "$COMPOSE_MODE" = 1 ]; then
+    compose stop "$(compose_service "$name")" >/dev/null
+    return 0
+  fi
   file="$(pid_file "$name")"
   [ -f "$file" ] || return 0
   pid="$(cat "$file")"
@@ -88,13 +112,20 @@ cleanup() {
     echo
     echo "!! e2e BAŞARISIZ (çıkış kodu $code). Servis log'larının son 30 satırı:"
     for name in $SERVICES; do
-      echo "----- $name ($(log_file "$name")) -----"
-      tail -n 30 "$(log_file "$name")" 2>/dev/null || echo "(log yok)"
+      if [ "$COMPOSE_MODE" = 1 ]; then
+        echo "----- $name (docker compose logs) -----"
+        compose logs --no-log-prefix --tail 30 "$(compose_service "$name")" 2>&1 || echo "(log yok)"
+      else
+        echo "----- $name ($(log_file "$name")) -----"
+        tail -n 30 "$(log_file "$name")" 2>/dev/null || echo "(log yok)"
+      fi
     done
   fi
-  for name in $SERVICES; do
-    stop_service "$name"
-  done
+  if [ "$COMPOSE_MODE" = 0 ]; then
+    for name in $SERVICES; do
+      stop_service "$name"
+    done
+  fi
   exit "$code"
 }
 trap cleanup EXIT
@@ -211,26 +242,37 @@ show_state() { # sipariş id, ürün, müşteri
 }
 
 # --- Hazırlık ---------------------------------------------------------------
-for tool in curl jq uuidgen docker dotnet; do
+for tool in curl jq uuidgen docker; do
   command -v "$tool" >/dev/null || fail "'$tool' bulunamadı"
 done
+if [ "$COMPOSE_MODE" = 0 ]; then
+  command -v dotnet >/dev/null || fail "'dotnet' bulunamadı"
+fi
 
-section "Ön kontrol"
-for c in saga-postgres saga-rabbitmq; do
-  health="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo yok)"
-  assert_eq "$c" healthy "$health"
-done
-for name in $SERVICES; do
-  if curl -fs "http://localhost:$(service_port "$name")/health/live" >/dev/null 2>&1; then
-    fail "$name zaten çalışıyor (port $(service_port "$name")); önce kapatın"
-  fi
-done
+if [ "$COMPOSE_MODE" = 1 ]; then
+  section "Compose stack'i kur (migrator -> 3 API; healthy olana kadar bekler)"
+  compose up -d --build --wait --wait-timeout 300
+  for c in saga-postgres saga-rabbitmq saga-ordering-api saga-inventory-api saga-payments-api; do
+    assert_eq "$c" healthy "$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo yok)"
+  done
+else
+  section "Ön kontrol"
+  for c in saga-postgres saga-rabbitmq; do
+    health="$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo yok)"
+    assert_eq "$c" healthy "$health"
+  done
+  for name in $SERVICES; do
+    if curl -fs "http://localhost:$(service_port "$name")/health/live" >/dev/null 2>&1; then
+      fail "$name zaten çalışıyor (port $(service_port "$name")); önce kapatın"
+    fi
+  done
 
-section "Build ve servisleri başlat"
-dotnet build DistributedSaga.sln -v q -clp:ErrorsOnly -nologo
-for name in $SERVICES; do
-  start_service "$name"
-done
+  section "Build ve servisleri başlat"
+  dotnet build DistributedSaga.sln -v q -clp:ErrorsOnly -nologo
+  for name in $SERVICES; do
+    start_service "$name"
+  done
+fi
 for name in $SERVICES; do
   wait_ready "$name"
   ok "$name hazır (port $(service_port "$name"))"

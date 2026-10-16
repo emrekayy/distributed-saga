@@ -4,7 +4,9 @@
 #    cp .env.example .env
 #    docker compose up -d                  # postgres + rabbitmq
 #    docker compose --profile tools up -d  # + pgAdmin
-#  Servis container'ları (order/stock/payment API) Adım 3-4'te eklenecek.
+#    docker compose --profile app up -d --build   # her şey: postgres, rabbitmq, migrator, 3 API
+#  "app" profilindeki API'ler Production ortamında koşar (startup'ta migration YOK; migrator servisi uygular).
+#  Demo bayrakları (Seed, InternalEndpoints) burada bilerek açıktır; Production varsayılanı kapalıdır.
 # =============================================================================
 name: distributed-saga
 
@@ -13,6 +15,39 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
+
+x-api-common: &api-common
+  profiles: ["app"]
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    migrator:
+      condition: service_completed_successfully
+  logging: *default-logging
+  networks:
+    - saga-net
+
+x-api-env: &api-env
+  ASPNETCORE_ENVIRONMENT: Production
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_AMQP_PORT: "5672"
+  RABBITMQ_VHOST: ${RABBITMQ_VHOST:-saga}
+  RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER tanımlı değil}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD tanımlı değil}
+  # DEMO: Production varsayılanı ikisi de kapalı; compose demosunda bilerek açık (e2e ve "siparişi izle" için).
+  Seed__Enabled: "true"
+  InternalEndpoints__Enabled: "true"
+
+x-api-health: &api-health
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
 
 services:
 
@@ -23,7 +58,7 @@ services:
   # managed service'e taşınabilir, connection string dışında kod değişmez.
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     container_name: saga-postgres
     restart: unless-stopped
     environment:
@@ -71,7 +106,7 @@ services:
   # değişirse volume'daki kuyruklar "kaybolmuş" gibi görünür.
   # ---------------------------------------------------------------------------
   rabbitmq:
-    image: rabbitmq:4.1-management-alpine
+    image: rabbitmq:4.1.8-management-alpine
     container_name: saga-rabbitmq
     hostname: saga-rabbitmq
     restart: unless-stopped
@@ -99,7 +134,7 @@ services:
   # http://localhost:5050
   # ---------------------------------------------------------------------------
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9.18.0
     container_name: saga-pgadmin
     profiles: ["tools"]
     restart: unless-stopped
@@ -117,6 +152,94 @@ services:
     logging: *default-logging
     networks:
       - saga-net
+
+  # ---------------------------------------------------------------------------
+  # "app" profili. Sıra: postgres + rabbitmq (healthy) -> migrator (bir kez çalışıp çıkar) -> 3 API.
+  # Healthcheck: image shell'siz/curl'süz (chiseled) olduğu için uygulamanın kendi "--health-probe" argümanı.
+  # ---------------------------------------------------------------------------
+  migrator:
+    image: saga/migrator:local
+    build:
+      context: .
+      dockerfile: deploy/migrator/Dockerfile
+    profiles: ["app"]
+    restart: "no"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
+      ORDER_DB_USER: ${ORDER_DB_USER:-order_svc}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?ORDER_DB_PASSWORD tanımlı değil}
+      STOCK_DB_NAME: ${STOCK_DB_NAME:-stock_db}
+      STOCK_DB_USER: ${STOCK_DB_USER:-stock_svc}
+      STOCK_DB_PASSWORD: ${STOCK_DB_PASSWORD:?STOCK_DB_PASSWORD tanımlı değil}
+      PAYMENT_DB_NAME: ${PAYMENT_DB_NAME:-payment_db}
+      PAYMENT_DB_USER: ${PAYMENT_DB_USER:-payment_svc}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?PAYMENT_DB_PASSWORD tanımlı değil}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - saga-net
+
+  ordering-api:
+    <<: *api-common
+    image: saga/ordering-api:local
+    build:
+      context: .
+      dockerfile: src/Services/Ordering/Ordering.API/Dockerfile
+    container_name: saga-ordering-api
+    environment:
+      <<: *api-env
+      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
+      ORDER_DB_USER: ${ORDER_DB_USER:-order_svc}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?ORDER_DB_PASSWORD tanımlı değil}
+      # e2e timeout senaryosu için kısa; gerçek varsayılan 00:00:30 (appsettings.json).
+      OrderSaga__PaymentTimeout: ${ORDER_PAYMENT_TIMEOUT:-00:00:10}
+    ports:
+      - "${ORDERING_PORT:-5100}:8080"
+    healthcheck:
+      test: ["CMD", "dotnet", "Ordering.API.dll", "--health-probe", "http://localhost:8080/health/ready"]
+      <<: *api-health
+
+  inventory-api:
+    <<: *api-common
+    image: saga/inventory-api:local
+    build:
+      context: .
+      dockerfile: src/Services/Inventory/Inventory.API/Dockerfile
+    container_name: saga-inventory-api
+    environment:
+      <<: *api-env
+      STOCK_DB_NAME: ${STOCK_DB_NAME:-stock_db}
+      STOCK_DB_USER: ${STOCK_DB_USER:-stock_svc}
+      STOCK_DB_PASSWORD: ${STOCK_DB_PASSWORD:?STOCK_DB_PASSWORD tanımlı değil}
+    ports:
+      - "${INVENTORY_PORT:-5200}:8080"
+    healthcheck:
+      test: ["CMD", "dotnet", "Inventory.API.dll", "--health-probe", "http://localhost:8080/health/ready"]
+      <<: *api-health
+
+  payments-api:
+    <<: *api-common
+    image: saga/payments-api:local
+    build:
+      context: .
+      dockerfile: src/Services/Payments/Payments.API/Dockerfile
+    container_name: saga-payments-api
+    environment:
+      <<: *api-env
+      PAYMENT_DB_NAME: ${PAYMENT_DB_NAME:-payment_db}
+      PAYMENT_DB_USER: ${PAYMENT_DB_USER:-payment_svc}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?PAYMENT_DB_PASSWORD tanımlı değil}
+      # Hata enjeksiyonu compose'da KAPALI kalır (yalnızca Development/Testing'de izinli).
+      FaultInjection__Enabled: "false"
+    ports:
+      - "${PAYMENTS_PORT:-5300}:8080"
+    healthcheck:
+      test: ["CMD", "dotnet", "Payments.API.dll", "--health-probe", "http://localhost:8080/health/ready"]
+      <<: *api-health
 
 volumes:
   postgres-data:

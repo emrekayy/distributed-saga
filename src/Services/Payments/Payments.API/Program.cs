@@ -5,6 +5,8 @@ using Payments.API.Infrastructure;
 using Payments.Application;
 using Payments.Infrastructure;
 
+await HealthProbe.RunIfRequestedAsync(args);
+
 var builder = WebApplication.CreateBuilder(args);
 
 if (builder.Environment.IsDevelopment())
@@ -28,10 +30,20 @@ app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapInternalPaymentsEndpoints();
 
-    // Yalnızca Development: production'da migration ayrı bir deploy adımıdır.
-    await app.Services.MigrateAndSeedPaymentDatabaseAsync();
+    // Yalnızca Development: production'da migration ayrı bir deploy adımıdır (migration bundle, ADR-016/022).
+    await app.Services.MigratePaymentDatabaseAsync();
+}
+
+// Demo bayrakları (varsayılan kapalı): /internal/* tanı endpoint'leri ve demo verisi.
+if (app.AreInternalEndpointsEnabled())
+{
+    app.MapInternalPaymentsEndpoints();
+}
+
+if (app.Configuration.IsSeedEnabled())
+{
+    await app.Services.SeedPaymentDatabaseAsync();
 }
 
 app.MapWalletEndpoints();

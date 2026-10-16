@@ -5,6 +5,8 @@ using Ordering.API.Infrastructure;
 using Ordering.Application;
 using Ordering.Infrastructure;
 
+await HealthProbe.RunIfRequestedAsync(args);
+
 var builder = WebApplication.CreateBuilder(args);
 
 if (builder.Environment.IsDevelopment())
@@ -28,10 +30,15 @@ app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapInternalOrderEndpoints();
 
-    // Yalnızca Development: production'da migration ayrı bir deploy adımıdır.
+    // Yalnızca Development: production'da migration ayrı bir deploy adımıdır (migration bundle, ADR-016/022).
     await app.Services.MigrateOrderDatabaseAsync();
+}
+
+// Demo bayrakları (varsayılan kapalı): /internal/* tanı endpoint'leri ve demo verisi.
+if (app.AreInternalEndpointsEnabled())
+{
+    app.MapInternalOrderEndpoints();
 }
 
 app.MapOrderEndpoints();

@@ -87,3 +87,16 @@ kopyalamak yerine `BuildingBlocks.Web` (yalnızca `FrameworkReference Microsoft.
 Servis, kendi exception eşlemesini `ProblemDetailsExceptionHandlerBase.MapException` ile verir. Para kolonları üç serviste
 `numeric(19,4)`: her DbContext `ConfigureConventions` içinde `UseMoneyPrecision()` çağırır (`BuildingBlocks.Messaging`);
 tek tek `HasPrecision` yazılmaz.
+
+**ADR-022 — Container'lar: chiseled runtime, migration bundle init servisi, demo bayrakları.** Bağlam: tek komutla ayağa
+kalkan, Production ortamında koşan bir stack gerekiyor; ADR-016 gereği startup'ta migration yapılamaz.
+→ **Build:** `sdk:9.0` ile derlenir (denendi; `TreatWarningsAsErrors` + `EnforceCodeStyleInBuild` ile 0/0 geçti, bu yüzden
+`sdk:10.0`'a geçilmedi). Yerel ortam ve CI SDK 10 kullanır; ikisi arasında fark çıkarsa (C# 14 / analyzer) Dockerfile'larda
+build stage'i `sdk:10.0` yapılır, runtime `aspnet:9.0` kalır. **Runtime:** `aspnet:9.0-noble-chiseled-extra` (shell/curl yok,
+küçük, varsayılan non-root `$APP_UID`; `-extra` ICU + tzdata içerir, Quartz ve kültür biçimlendirmesi için). Healthcheck curl
+olmadan: `dotnet X.API.dll --health-probe <url>` (`BuildingBlocks.Web.HealthProbe`, yalnızca BCL). **Migration:** `deploy/migrator`
+imajı üç servisin `dotnet ef migrations bundle` (self-contained) çıktısını taşır; her DB kendi kullanıcısıyla migrate edilir,
+compose'da API'ler `service_completed_successfully` ile bekler. **Demo bayrakları:** `Seed:Enabled` (demo verisi) ve
+`InternalEndpoints:Enabled` (`/internal/*`) ortamdan bağımsızdır, varsayılan kapalıdır; Development ve compose demosunda açıktır.
+Production'da `InternalEndpoints` açılırsa startup'ta uyarı loglanır (kimlik doğrulamasız, yalnızca demo). `FaultInjection` compose'da
+kapalıdır ve Production'da açılamaz. Sonuç: e2e aynı doğrulamalarla compose stack'ine karşı koşar (`./scripts/e2e.sh --compose`).
