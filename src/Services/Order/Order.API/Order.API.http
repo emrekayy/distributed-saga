@@ -1,6 +1,27 @@
-@Order.API_HostAddress = http://localhost:5149
+@host = http://localhost:5100
 
-GET {{Order.API_HostAddress}}/weatherforecast/
-Accept: application/json
+POST {{host}}/orders
+Content-Type: application/json
+Idempotency-Key: demo-0001
+
+{
+  "customerId": "6f1c2b8e-3a4d-4f5e-9a7b-1c2d3e4f5a6b",
+  "currency": "TRY",
+  "items": [
+    { "productId": "a1a1a1a1-0000-0000-0000-000000000001", "quantity": 2, "unitPrice": 150.00 },
+    { "productId": "a1a1a1a1-0000-0000-0000-000000000002", "quantity": 1, "unitPrice": 99.90 }
+  ]
+}
 
 ###
+
+GET {{host}}/orders/{{orderId}}
+
+###
+
+# Yalnızca Development
+GET {{host}}/internal/orders/{{orderId}}/saga
+
+###
+
+GET {{host}}/health/ready
