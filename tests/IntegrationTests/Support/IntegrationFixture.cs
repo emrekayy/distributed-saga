@@ -4,7 +4,9 @@ using System.Net.Sockets;
 using Inventory.API;
 using Inventory.Domain.Products;
 using Inventory.Infrastructure.Persistence;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Ordering.API;
 using Ordering.Infrastructure.Persistence;
 using Payments.API;
@@ -48,6 +50,10 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
     public MessageProbe Probe { get; private set; } = null!;
 
+    public ConsumeActivityObserver InventoryConsumers { get; } = new();
+
+    public ConsumeActivityObserver PaymentsConsumers { get; } = new();
+
     public HttpClient OrderingClient { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -84,8 +90,8 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
         var settings = BuildSettings();
         _ordering = new ServiceFactory<OrderingApiMarker>(settings);
-        _inventory = new ServiceFactory<InventoryApiMarker>(settings);
-        _payments = new ServiceFactory<PaymentsApiMarker>(settings);
+        _inventory = new ServiceFactory<InventoryApiMarker>(settings, s => s.AddConsumeObserver(_ => InventoryConsumers));
+        _payments = new ServiceFactory<PaymentsApiMarker>(settings, s => s.AddConsumeObserver(_ => PaymentsConsumers));
 
         // Host'lar (MassTransit bus, Quartz) CreateClient ile başlar.
         OrderingClient = _ordering.CreateClient();
@@ -145,6 +151,37 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
     public PaymentDbContext CreatePaymentDb() =>
         new(new DbContextOptionsBuilder<PaymentDbContext>().UseNpgsql(PaymentConnectionString).Options);
+
+    /// <summary>
+    /// pg_stat_database.deadlocks (kümülatif). İstatistikler gecikmeli yazıldığı için okumadan önce bu bağlantının
+    /// payı flush edilir ve snapshot temizlenir.
+    /// </summary>
+    public async Task<long> DeadlockCountAsync(string database)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(
+            $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=postgres;Username={AdminUser};Password={AdminPassword};Pooling=false");
+        await connection.OpenAsync();
+
+        await using (var prepare = new Npgsql.NpgsqlCommand("SELECT pg_stat_force_next_flush(); SELECT pg_stat_clear_snapshot();", connection))
+        {
+            await prepare.ExecuteNonQueryAsync();
+        }
+
+        await using var query = new Npgsql.NpgsqlCommand("SELECT deadlocks FROM pg_stat_database WHERE datname = @db", connection);
+        query.Parameters.AddWithValue("db", database);
+        return (long)(await query.ExecuteScalarAsync() ?? 0L);
+    }
+
+    /// <summary>Tablodaki CHECK kısıtı sayısı (stok/bakiye negatife düşemez garantisinin asıl kaynağı).</summary>
+    public async Task<long> CheckConstraintCountAsync(string connectionString, string table)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var query = new Npgsql.NpgsqlCommand(
+            "SELECT count(*) FROM pg_constraint WHERE contype = 'c' AND conrelid = @t::regclass", connection);
+        query.Parameters.AddWithValue("t", $"\"{table}\"");
+        return (long)(await query.ExecuteScalarAsync() ?? 0L);
+    }
 
     public async Task<Guid> SeedProductAsync(int quantity)
     {
