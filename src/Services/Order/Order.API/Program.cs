@@ -1,39 +1,42 @@
+using BuildingBlocks.Messaging.Configuration;
+using Order.API.Endpoints;
+using Order.API.Infrastructure;
+using Order.Application;
+using Order.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+if (builder.Environment.IsDevelopment())
+{
+    // Secret'lar repoda değil, kökteki .env'de (git'e girmez). Container'da ortam değişkenleri kullanılır.
+    builder.Configuration.AddDotEnvFromParentDirectories(builder.Environment.ContentRootPath);
+}
+
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
 builder.Services.AddOpenApi();
+
+builder.Services.AddOrderApplication();
+builder.Services.AddOrderInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapInternalOrderEndpoints();
+
+    // Yalnızca Development: production'da migration ayrı bir deploy adımıdır.
+    await app.Services.MigrateOrderDatabaseAsync();
 }
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapOrderEndpoints();
+app.MapHealthEndpoints();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+await app.RunAsync();
 
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+/// <summary>WebApplicationFactory tabanlı entegrasyon testleri için.</summary>
+public partial class Program;
