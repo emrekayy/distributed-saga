@@ -36,10 +36,10 @@ DistributedSaga/
 │   │   ├── Shared.Contracts/          # Event & command sözleşmeleri (bağımlılıksız)
 │   │   └── BuildingBlocks.Messaging/  # MassTransit + RabbitMQ + Outbox ortak config (→ Shared.Contracts)
 │   └── Services/
-│       ├── Order/    Order.Domain · Order.Application · Order.Infrastructure · Order.API
-│       ├── Stock/    Stock.Domain · Stock.Application · Stock.Infrastructure · Stock.API
-│       └── Payment/  Payment.Domain · Payment.Application · Payment.Infrastructure · Payment.API
-├── tests/            Order.UnitTests · Stock.UnitTests · Payment.UnitTests (xUnit; → Domain + Application + Messaging)
+│       ├── Ordering/  Ordering.Domain · Ordering.Application · Ordering.Infrastructure · Ordering.API
+│       ├── Inventory/ Inventory.Domain · Inventory.Application · Inventory.Infrastructure · Inventory.API
+│       └── Payments/  Payments.Domain · Payments.Application · Payments.Infrastructure · Payments.API
+├── tests/            Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (xUnit; → Domain + Application + Messaging)
 │                     Shared.Contracts.Tests (sözleşme mimari testleri, reflection)
 │                     BuildingBlocks.Messaging.Tests (retry sınıflandırması)
 ├── deploy/postgres/init/01-init-databases.sh   # İlk açılışta DB + kullanıcıları oluşturur
@@ -53,15 +53,15 @@ DistributedSaga/
 Proje referansları: `X.Application → X.Domain, Shared.Contracts` · `X.Infrastructure → X.Application,
 BuildingBlocks.Messaging` · `X.API → X.Application, X.Infrastructure`.
 
-Order servisi içi:
+Ordering servisi içi:
 
 ```
-Order.Domain/Orders/          Order (aggregate) · OrderItem · OrderStatus · domain exception'ları
-Order.Application/Orders/     SubmitOrderHandler · RequestHasher · IOrderRepository/IUnitOfWork
-Order.Application/Saga/       OrderStateMachine · OrderState · activity'ler · PaymentTimeoutExpired · OrderSagaOptions
-Order.Infrastructure/         OrderDbContext · EF configuration'ları · Migrations · Sql/quartz_tables_postgres.sql
+Ordering.Domain/Orders/          Order (aggregate) · OrderItem · OrderStatus · domain exception'ları
+Ordering.Application/Orders/     SubmitOrderHandler · RequestHasher · IOrderRepository/IUnitOfWork
+Ordering.Application/Saga/       OrderStateMachine · OrderState · activity'ler · PaymentTimeoutExpired · OrderSagaOptions
+Ordering.Infrastructure/         OrderDbContext · EF configuration'ları · Migrations · Sql/quartz_tables_postgres.sql
                               Saga/OrderStateDefinition (retry + outbox) · DependencyInjection (MassTransit, Quartz)
-Order.API/                    Minimal API (Endpoints/) · ProblemDetails eşlemesi · composition root
+Ordering.API/                    Minimal API (Endpoints/) · ProblemDetails eşlemesi · composition root
 ```
 
 BuildingBlocks.Messaging: `AddMessaging<TDbContext>` (RabbitMQ + EF outbox + bus outbox), `QueueNames` +
@@ -81,12 +81,12 @@ dotnet list DistributedSaga.sln package --outdated   # MassTransit'i yalnızca 8
 
 # EF Core migration (Order)
 dotnet tool restore
-dotnet ef migrations add <Ad> -p src/Services/Order/Order.Infrastructure -s src/Services/Order/Order.API -o Persistence/Migrations
-dotnet ef migrations bundle -p src/Services/Order/Order.Infrastructure -s src/Services/Order/Order.API   # production
+dotnet ef migrations add <Ad> -p src/Services/Ordering/Ordering.Infrastructure -s src/Services/Ordering/Ordering.API -o Persistence/Migrations
+dotnet ef migrations bundle -p src/Services/Ordering/Ordering.Infrastructure -s src/Services/Ordering/Ordering.API   # production
 
 # Order API (Development; .env kökten okunur, migration startup'ta uygulanır)
-dotnet run --project src/Services/Order/Order.API          # http://localhost:5100
-OrderSaga__PaymentTimeout=00:00:10 dotnet run --project src/Services/Order/Order.API   # kısa timeout ile
+dotnet run --project src/Services/Ordering/Ordering.API          # http://localhost:5100
+OrderSaga__PaymentTimeout=00:00:10 dotnet run --project src/Services/Ordering/Ordering.API   # kısa timeout ile
 curl -i -X POST localhost:5100/orders -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-1' \
   -d '{"customerId":"6f1c2b8e-3a4d-4f5e-9a7b-1c2d3e4f5a6b","currency":"TRY","items":[{"productId":"a1a1a1a1-0000-0000-0000-000000000001","quantity":2,"unitPrice":150}]}'
 curl localhost:5100/orders/<id>
@@ -110,7 +110,7 @@ RabbitMQ UI: http://localhost:15672 (vhost `saga`) · PostgreSQL: `localhost:543
 
 ## Mesaj sözleşmeleri (Shared.Contracts)
 
-Orchestration saga: akışı Order servisindeki MassTransit state machine yönetir. Event'ler publish (fan-out),
+Orchestration saga: akışı Ordering servisindeki MassTransit state machine yönetir. Event'ler publish (fan-out),
 command'lar ilgili servisin kuyruğuna send (point-to-point) edilir.
 
 ```
@@ -125,19 +125,19 @@ Shared.Contracts/
 
 | Mesaj | Tip | Publisher | Consumer |
 |---|---|---|---|
-| `OrderSubmitted` | Event | Order servisi (outbox) | Order saga (başlatır) |
-| `ReserveStock` | Command | Order saga | Stock servisi |
-| `StockReserved` | Event | Stock servisi | Order saga → `ProcessPayment` |
-| `StockReservationFailed` | Event | Stock servisi | Order saga → `OrderFailed` (telafi yok) |
-| `ProcessPayment` | Command | Order saga | Payment servisi |
-| `PaymentCompleted` | Event | Payment servisi | Order saga → `OrderCompleted` |
-| `PaymentFailed` | Event | Payment servisi | Order saga → `ReleaseStock` |
-| `ReleaseStock` | Command (compensation) | Order saga | Stock servisi |
-| `StockReleased` | Event | Stock servisi | Order saga → `OrderFailed` |
-| `OrderCompleted` | Event | Order saga | Order servisi (sipariş durumu), dış dinleyiciler |
-| `OrderFailed` | Event | Order saga | Order servisi (sipariş durumu), dış dinleyiciler |
-| `RefundPayment` | Command (compensation) | Order saga (timeout sonrası geç `PaymentCompleted`) | Payment servisi |
-| `PaymentRefunded` | Event | Payment servisi | Order saga (`RefundedAt` kaydı) |
+| `OrderSubmitted` | Event | Ordering servisi (outbox) | Order saga (başlatır) |
+| `ReserveStock` | Command | Order saga | Inventory servisi |
+| `StockReserved` | Event | Inventory servisi | Order saga → `ProcessPayment` |
+| `StockReservationFailed` | Event | Inventory servisi | Order saga → `OrderFailed` (telafi yok) |
+| `ProcessPayment` | Command | Order saga | Payments servisi |
+| `PaymentCompleted` | Event | Payments servisi | Order saga → `OrderCompleted` |
+| `PaymentFailed` | Event | Payments servisi | Order saga → `ReleaseStock` |
+| `ReleaseStock` | Command (compensation) | Order saga | Inventory servisi |
+| `StockReleased` | Event | Inventory servisi | Order saga → `OrderFailed` |
+| `OrderCompleted` | Event | Order saga | Ordering servisi (sipariş durumu), dış dinleyiciler |
+| `OrderFailed` | Event | Order saga | Ordering servisi (sipariş durumu), dış dinleyiciler |
+| `RefundPayment` | Command (compensation) | Order saga (timeout sonrası geç `PaymentCompleted`) | Payments servisi |
+| `PaymentRefunded` | Event | Payments servisi | Order saga (`RefundedAt` kaydı) |
 | `PaymentTimeoutExpired` *(iç, Shared.Contracts'ta değil)* | Schedule | Order saga → Quartz | Order saga |
 
 Akışlar:
@@ -181,7 +181,7 @@ Akışlar:
   Rezervasyon/tahsilat yoksa veya zaten serbest bırakılmış/iade edilmişse yine `StockReleased`/`PaymentRefunded`
   publish edilir, aksi halde saga takılır. Bu yüzden `ReleaseFailed`/`RefundFailed` event'i **yoktur**.
 
-## Order servisi ve saga (Adım 3)
+## Ordering servisi ve saga (Adım 3)
 
 ### API
 
@@ -264,7 +264,7 @@ Instance'ı olmayan bir event (bilinmeyen OrderId) ise bilinçli olarak fault �
   `ORDER_DB_USER`, `RABBITMQ_PASSWORD` …); ortam değişkenleri `.env`'yi ezer. Container'da aynı anahtarlar ortam
   değişkeni olarak verilir. `appsettings.json` yalnızca secret olmayan varsayılanları içerir.
 
-### Test stratejisi (Order.UnitTests)
+### Test stratejisi (Ordering.UnitTests)
 
 - Domain (geçişler, invariant'lar, toplam), `RequestHasher` (sıra bağımsızlığı), `SubmitOrderHandler` (fake repository).
 - Saga: `AddMassTransitTestHarness` + in-memory saga repository + fake `IOrderRepository`. Zamanlayıcı olarak Quartz yerine
@@ -280,7 +280,8 @@ Instance'ı olmayan bir event (bilinmeyen OrderId) ise bilinçli olarak fault �
 - `AddMessaging<TDbContext>` + endpoint'te `UseMessageRetry(r => r.UseTransientDatabaseRetry(...))` →
   `UseEntityFrameworkOutbox<TDbContext>`; iş anahtarları: Stock rezervasyonu ve Payment tahsilatı `OrderId` unique.
 - Payment `RefundPayment` consumer'ı: tahsilat yoksa/zaten iade edildiyse de `PaymentRefunded` (Amount = fiilen iade edilen).
-- Domain/application katmanında `Stock` kök namespace'i ile `Shared.Contracts.Stock` çakışabilir (bkz. tuzaklar).
+- Servis adları (Ordering/Inventory/Payments) Shared.Contracts alan adlarıyla (Orders/Stock/Payments) çakışmaz;
+  contract namespace'leri wire contract olduğu için değiştirilmez.
 
 ## Notlar / tuzaklar
 
@@ -288,9 +289,6 @@ Instance'ı olmayan bir event (bilinmeyen OrderId) ise bilinçli olarak fault �
   `<Nullable>`, `<ImplicitUsings>` satırlarını csproj'dan siler (merkezi props'tan gelir) ve CRLF/BOM'u temizler.
 - MSBuild XML yorumlarında `--` kullanılamaz (props dosyası yüklenemez).
 - Init script yalnızca **boş** postgres volume'unda çalışır; DB/kullanıcı değişikliği için `docker compose down -v`.
-- **Kök namespace = tip adı çakışması:** `Order` kök namespace'i ve `Order` aggregate'i. `Order.Domain.Orders` dışında
-  `Order` adı namespace'e çözülür (CS0118). Aggregate'i kullanan dosyalarda `using Order.Domain.Orders;` **namespace
-  bildiriminden sonra** yazılır (namespace düzeyindeki using, kök namespace'ten önce aranır).
 - **`.env` ve `AddIniFile`:** `PhysicalFileProvider` varsayılan olarak `.` ile başlayan dosyaları gizler; optional bir
   kaynak sessizce boş kalır. `ExclusionFilters.None` ile provider verilmeli (bkz. `ConfigurationExtensions`).
 - **C# 14 (.NET 10 SDK, LangVersion=latest):** dizilerde `.Reverse()` artık `Span` üzerindeki in-place (void) metoda
@@ -304,7 +302,7 @@ Instance'ı olmayan bir event (bilinmeyen OrderId) ise bilinçli olarak fault �
 
 - [x] **Adım 1** — Solution iskeleti + yerel altyapı (postgres, rabbitmq)
 - [x] **Adım 2** — Shared.Contracts (event/command sözleşmeleri + mimari testler)
-- [x] **Adım 3** — Order servisi + Saga (MassTransit State Machine, EF Core saga repository, Outbox, Quartz timeout)
+- [x] **Adım 3** — Ordering servisi + Saga (MassTransit State Machine, EF Core saga repository, Outbox, Quartz timeout)
 - [ ] **Adım 4** — Stock/Payment consumer'ları (idempotent, outbox)
 - [ ] **Adım 5** — Hata ve compensation testleri (stok iadesi, ödeme iadesi)
 

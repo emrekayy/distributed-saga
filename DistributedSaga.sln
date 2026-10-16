@@ -15,45 +15,51 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{98
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Order", "Order", "{B851199A-4979-E597-3D50-97AC5992BBAF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Order.Domain", "src\Services\Order\Order.Domain\Order.Domain.csproj", "{0C425202-DCE7-49B2-AAC0-6F50C1D5C20D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.Domain", "src\Services\Ordering\Ordering.Domain\Ordering.Domain.csproj", "{0C425202-DCE7-49B2-AAC0-6F50C1D5C20D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Order.Application", "src\Services\Order\Order.Application\Order.Application.csproj", "{6A8CD175-B8DB-41EF-A177-773460716BD0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.Application", "src\Services\Ordering\Ordering.Application\Ordering.Application.csproj", "{6A8CD175-B8DB-41EF-A177-773460716BD0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Order.Infrastructure", "src\Services\Order\Order.Infrastructure\Order.Infrastructure.csproj", "{59E896D0-4AEF-4A74-B29D-15D9F36DE1E3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.Infrastructure", "src\Services\Ordering\Ordering.Infrastructure\Ordering.Infrastructure.csproj", "{59E896D0-4AEF-4A74-B29D-15D9F36DE1E3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Order.API", "src\Services\Order\Order.API\Order.API.csproj", "{F9756E37-7E47-478C-9509-F25D24CFBD28}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.API", "src\Services\Ordering\Ordering.API\Ordering.API.csproj", "{F9756E37-7E47-478C-9509-F25D24CFBD28}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Order.UnitTests", "tests\Order.UnitTests\Order.UnitTests.csproj", "{894DF7AC-A4D2-43A8-9781-AA0989F54B56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.UnitTests", "tests\Ordering.UnitTests\Ordering.UnitTests.csproj", "{894DF7AC-A4D2-43A8-9781-AA0989F54B56}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stock", "Stock", "{75590350-2C6C-68DD-10B1-7ED9A5DDB0E2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stock.Domain", "src\Services\Stock\Stock.Domain\Stock.Domain.csproj", "{09C59B2F-DDBE-4744-B1BD-93D7BC32EFDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.Domain", "src\Services\Inventory\Inventory.Domain\Inventory.Domain.csproj", "{09C59B2F-DDBE-4744-B1BD-93D7BC32EFDF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stock.Application", "src\Services\Stock\Stock.Application\Stock.Application.csproj", "{AB960464-6CCA-435E-9A6A-92D3B5C6E662}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.Application", "src\Services\Inventory\Inventory.Application\Inventory.Application.csproj", "{AB960464-6CCA-435E-9A6A-92D3B5C6E662}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stock.Infrastructure", "src\Services\Stock\Stock.Infrastructure\Stock.Infrastructure.csproj", "{BA544ABD-76FC-4109-970A-E19C1F38DB6D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.Infrastructure", "src\Services\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj", "{BA544ABD-76FC-4109-970A-E19C1F38DB6D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stock.API", "src\Services\Stock\Stock.API\Stock.API.csproj", "{3C47208D-57BE-4016-B46F-8C292C0C65CB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.API", "src\Services\Inventory\Inventory.API\Inventory.API.csproj", "{3C47208D-57BE-4016-B46F-8C292C0C65CB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stock.UnitTests", "tests\Stock.UnitTests\Stock.UnitTests.csproj", "{B52A3769-88AC-4090-AA74-DAD45E1787C3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.UnitTests", "tests\Inventory.UnitTests\Inventory.UnitTests.csproj", "{B52A3769-88AC-4090-AA74-DAD45E1787C3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Payment", "Payment", "{3FB03296-F262-2760-9861-73C41AF3766C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.Domain", "src\Services\Payment\Payment.Domain\Payment.Domain.csproj", "{48BEA4FB-9EDA-4E8B-AE3A-D71D0A2F3C9E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payments.Domain", "src\Services\Payments\Payments.Domain\Payments.Domain.csproj", "{48BEA4FB-9EDA-4E8B-AE3A-D71D0A2F3C9E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.Application", "src\Services\Payment\Payment.Application\Payment.Application.csproj", "{AA492BB9-CE85-4966-A697-F97711034A35}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payments.Application", "src\Services\Payments\Payments.Application\Payments.Application.csproj", "{AA492BB9-CE85-4966-A697-F97711034A35}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.Infrastructure", "src\Services\Payment\Payment.Infrastructure\Payment.Infrastructure.csproj", "{00326E64-276C-4DA5-961D-369D5358DF71}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payments.Infrastructure", "src\Services\Payments\Payments.Infrastructure\Payments.Infrastructure.csproj", "{00326E64-276C-4DA5-961D-369D5358DF71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.API", "src\Services\Payment\Payment.API\Payment.API.csproj", "{DF2868F2-344A-4ABB-8110-8224F883213B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payments.API", "src\Services\Payments\Payments.API\Payments.API.csproj", "{DF2868F2-344A-4ABB-8110-8224F883213B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.UnitTests", "tests\Payment.UnitTests\Payment.UnitTests.csproj", "{559567DA-C0A0-4252-BEB9-491416988401}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payments.UnitTests", "tests\Payments.UnitTests\Payments.UnitTests.csproj", "{559567DA-C0A0-4252-BEB9-491416988401}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared.Contracts.Tests", "tests\Shared.Contracts.Tests\Shared.Contracts.Tests.csproj", "{5622CB99-34B2-4E7E-8657-CDF2AC9B23D7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildingBlocks.Messaging.Tests", "tests\BuildingBlocks.Messaging.Tests\BuildingBlocks.Messaging.Tests.csproj", "{4679FC35-89DD-4803-AFC0-02AB16B4A7C6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Ordering", "Ordering", "{D3BAB01C-7F3F-8576-96BE-8BE70C9B9915}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Inventory", "Inventory", "{CA15E31E-CB60-F235-5CDF-2E527A86A72C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Payments", "Payments", "{5D0AC027-C8EE-3244-A029-36278C99F1B8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -322,5 +328,8 @@ Global
 		{559567DA-C0A0-4252-BEB9-491416988401} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{5622CB99-34B2-4E7E-8657-CDF2AC9B23D7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4679FC35-89DD-4803-AFC0-02AB16B4A7C6} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{D3BAB01C-7F3F-8576-96BE-8BE70C9B9915} = {984BB9B3-3FA3-BE33-9484-CAC21695A33C}
+		{CA15E31E-CB60-F235-5CDF-2E527A86A72C} = {984BB9B3-3FA3-BE33-9484-CAC21695A33C}
+		{5D0AC027-C8EE-3244-A029-36278C99F1B8} = {984BB9B3-3FA3-BE33-9484-CAC21695A33C}
 	EndGlobalSection
 EndGlobal

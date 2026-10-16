@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 SLN="DistributedSaga"
-SERVICES=("Order" "Stock" "Payment")
+SERVICES=("Ordering" "Inventory" "Payments")
 
 # new_project <şablon> <ad> <dizin> [ek şablon argümanları...]
 # Proje zaten varsa dokunmaz (geliştirilmiş kodun üzerine yazmamak için).

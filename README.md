@@ -26,10 +26,10 @@ DistributedSaga/
 │   │   ├── Shared.Contracts/          # Event & command sözleşmeleri (bağımlılıksız)
 │   │   └── BuildingBlocks.Messaging/  # MassTransit + RabbitMQ + Outbox ortak config
 │   └── Services/
-│       ├── Order/    Order.Domain · Order.Application · Order.Infrastructure · Order.API
-│       ├── Stock/    Stock.Domain · Stock.Application · Stock.Infrastructure · Stock.API
-│       └── Payment/  Payment.Domain · Payment.Application · Payment.Infrastructure · Payment.API
-├── tests/            Order.UnitTests · Stock.UnitTests · Payment.UnitTests
+│       ├── Ordering/  Ordering.Domain · Ordering.Application · Ordering.Infrastructure · Ordering.API
+│       ├── Inventory/ Inventory.Domain · Inventory.Application · Inventory.Infrastructure · Inventory.API
+│       └── Payments/  Payments.Domain · Payments.Application · Payments.Infrastructure · Payments.API
+├── tests/            Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests
 ├── deploy/postgres/init/01-init-databases.sh
 ├── docker-compose.yml · .env.example
 ├── Directory.Build.props · Directory.Packages.props · global.json · .editorconfig
