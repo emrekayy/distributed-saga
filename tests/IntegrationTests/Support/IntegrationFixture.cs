@@ -65,6 +65,10 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
     public HttpClient OrderingClient { get; private set; } = null!;
 
+    public HttpClient InventoryClient { get; private set; } = null!;
+
+    public HttpClient PaymentsClient { get; private set; } = null!;
+
     public async Task InitializeAsync()
     {
         _rabbitPort = FreeTcpPort();
@@ -112,8 +116,8 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
         // Host'lar (MassTransit bus, Quartz) CreateClient ile başlar.
         OrderingClient = _ordering.CreateClient();
-        _ = _inventory.CreateClient();
-        _ = _payments.CreateClient();
+        InventoryClient = _inventory.CreateClient();
+        PaymentsClient = _payments.CreateClient();
 
         Probe = await MessageProbe.StartAsync(_rabbit.Hostname, (ushort)_rabbitPort, Vhost, RabbitUser, RabbitPassword);
     }
@@ -126,6 +130,8 @@ public sealed class IntegrationFixture : IAsyncLifetime
         }
 
         OrderingClient?.Dispose();
+        InventoryClient?.Dispose();
+        PaymentsClient?.Dispose();
         if (_ordering is not null)
         {
             await _ordering.DisposeAsync();
@@ -300,6 +306,29 @@ public sealed class IntegrationFixture : IAsyncLifetime
     }
 
     // --- Broker ------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Broker'ı gerçekten durdurur (bağlantı reddedilir). Pause kullanılmaz: duraklatılmış container TCP bağlantısını
+    /// koparmaz, yani "broker yok" değil "broker yavaş" senaryosunu test ederdi. Host port sabit olduğundan
+    /// <see cref="StartBrokerAsync"/> sonrası adres değişmez.
+    /// </summary>
+    public Task StopBrokerAsync() => _rabbit.StopAsync();
+
+    public Task StartBrokerAsync() => _rabbit.StartAsync();
+
+    /// <summary>Verilen SQL'in tek değerlik (count) sonucu.</summary>
+    public async Task<long> CountAsync(string connectionString, string sql, string? parameterName = null, object? parameterValue = null)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new Npgsql.NpgsqlCommand(sql, connection);
+        if (parameterName is not null)
+        {
+            command.Parameters.AddWithValue(parameterName, parameterValue!);
+        }
+
+        return (long)(await command.ExecuteScalarAsync() ?? 0L);
+    }
 
     /// <summary>Kuyruktaki hazır mesaj sayısı (rabbitmqctl; management API ~5 sn gecikmeli olduğundan kullanılmaz).</summary>
     public async Task<int> QueueMessagesAsync(string queueName)
