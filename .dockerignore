@@ -1,0 +1,17 @@
+# Build context'e girmemesi gerekenler: secret'lar, build çıktıları, test ve doküman.
+**/.git
+**/.vs
+**/.idea
+**/bin
+**/obj
+.env
+.env.*
+!.env.example
+.e2e
+.github
+docs
+tests
+*.md
+**/*.http
+**/launchSettings.json
+docker-compose*.yml

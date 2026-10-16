@@ -44,7 +44,10 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
   yapma (40001 retry fırtınası). ADR-020. Hatalı girdi exception değil, kaydedilmiş `VALIDATION_ERROR` sonucudur.
 - **Para:** tüm servislerde `numeric(19,4)`; DbContext `ConfigureConventions` içinde `UseMoneyPrecision()`, tek tek `HasPrecision` yok.
 - **Zamanlayıcı:** MassTransit.Quartz + Postgres job store (`quartz` şeması). RabbitMQ delayed-exchange kullanılmaz.
-- **Migration:** startup'ta yalnızca Development'ta; production'da `dotnet ef migrations bundle`. Secret'lar `.env`'de.
+- **Migration:** startup'ta yalnızca Development'ta; production'da `dotnet ef migrations bundle` (compose'da `migrator` servisi, ADR-022).
+  Secret'lar `.env`'de. **Demo bayrakları** `Seed:Enabled` ve `InternalEndpoints:Enabled` ortamdan bağımsız, varsayılan kapalı;
+  Development ve compose demosunda açık. `FaultInjection` compose'da kapalı. **Container:** runtime `aspnet:9.0-noble-chiseled-extra`
+  (shell yok; healthcheck `--health-probe`), build `sdk:9.0`. Docker adımları için credential helper notuna bak (`docs/troubleshooting.md`).
 
 ## Klasör yapısı
 
@@ -63,7 +66,8 @@ DistributedSaga/
 │                     Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (→ Domain + Application + Messaging)
 │                     Shared.Contracts.Tests (sözleşme mimari testleri) · BuildingBlocks.Messaging.Tests (retry)
 ├── docs/                                        # Ayrıntılar (yukarıdaki listeye bak)
-├── scripts/e2e.sh                               # 4 uçtan uca senaryo (gerçek altyapı, 3 servis)
+├── scripts/e2e.sh                               # 4 uçtan uca senaryo (dotnet run ya da --compose)
+├── deploy/migrator/                             # EF migration bundle imajı + migrate.sh (init container)
 ├── deploy/postgres/init/01-init-databases.sh   # İlk açılışta DB + kullanıcıları oluşturur
 ├── docker-compose.yml · .env.example (.env git'e girmez)
 ├── Directory.Build.props · Directory.Packages.props · global.json · .editorconfig
@@ -113,6 +117,8 @@ dotnet run --project src/Services/Payments/Payments.API
 docker compose up -d                # postgres + rabbitmq
 docker compose ps                   # ikisi de (healthy) olmalı
 docker compose --profile tools up -d   # + pgAdmin (http://localhost:5050)
+docker compose --profile app up -d --build   # postgres + rabbitmq + migrator + 3 API (Production ortamı, ADR-022)
+./scripts/e2e.sh --compose          # 4 senaryo, compose stack'ine karşı (stack'i kapatmaz)
 docker compose down                 # durdur (veri volume'larda kalır)
 docker compose down -v              # volume'larla birlikte sil → init script yeniden çalışır
 
@@ -149,6 +155,8 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [x] **Adım 5** — Entegrasyon/eşzamanlılık/hata testleri (Testcontainers, `tests/IntegrationTests`; Quartz entegrasyonu,
   stok/ödeme iadesi, 10 stoğa 50 paralel rezervasyon, Payments FaultInjection, outbox broker kesintisi); `docs/testing.md`
 
-Durum: build 0/0, 113 birim testi + 26 entegrasyon testi yeşil (Ordering 54, Inventory 19, Payments 20, Contracts 10, Messaging 10; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
+- [ ] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar ✅ · 6b gözlemlenebilirlik · 6c CI · 6d README/LICENSE/secret taraması
+
+Durum: build 0/0, 122 birim testi + 26 entegrasyon testi yeşil (Ordering 54, Inventory 19, Payments 20, Contracts 10, Messaging 19; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
 
 Bir sonraki adıma kullanıcı açıkça söylemeden geçme.
