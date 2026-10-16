@@ -1,6 +1,6 @@
 # Distributed Saga
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/emrekayy/distributed-saga/actions/workflows/ci.yml/badge.svg)](https://github.com/emrekayy/distributed-saga/actions/workflows/ci.yml)
 
 An order-processing backend that keeps three independently deployed services consistent without distributed transactions:
 **Ordering** runs an orchestration saga (MassTransit state machine) that coordinates **Inventory** (stock reservation) and
