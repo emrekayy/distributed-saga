@@ -26,6 +26,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.Extensions.*"
         update-types: ["version-update:semver-major"]
+      # MassTransit.Quartz 8.x, Quartz'ı [3.22, 4.0) aralığıyla sınırlar (NU1608); Quartz 4.x ancak MassTransit hattı
+      # değişince mümkündür ve o da v9 (ticari, ADR-002) demektir. Bu yüzden Quartz major'ları önerilmez.
+      - dependency-name: "Quartz*"
+        update-types: ["version-update:semver-major"]
       # dotnet-tools.json: dotnet-ef EF Core 9 ile aynı hatta kalır.
       - dependency-name: "dotnet-ef"
         update-types: ["version-update:semver-major"]
