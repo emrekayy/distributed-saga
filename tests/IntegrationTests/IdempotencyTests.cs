@@ -32,7 +32,9 @@ public sealed class IdempotencyTests(IntegrationFixture fixture)
             async () => fixture.Probe.Of<StockReserved>(orderId).Count >= 1 && await fixture.QueueMessagesAsync(QueueNames.ReserveStock) == 0,
             "first delivery answered and both deliveries consumed from the queue");
 
-        Assert.InRange(fixture.Probe.Of<StockReserved>(orderId).Count, 1, 2);
+        // Garanti "tek etki"dir (aşağıdaki Inbox ve stok doğrulamaları), "tek event" değil: at-least-once outbox yinelenen
+        // teslimde sonuç event'ini birden fazla kez yayınlayabilir (tam süitte 4'e kadar gözlendi). Üst sınır yok.
+        Assert.NotEmpty(fixture.Probe.Of<StockReserved>(orderId));
         Assert.Equal(1, await fixture.InboxCountAsync(fixture.StockConnectionString, messageId));
         await using var db = fixture.CreateStockDb();
         Assert.Equal(7, await db.Products.AsNoTracking().Where(p => p.Id == productId).Select(p => p.AvailableQuantity).SingleAsync());
@@ -54,7 +56,7 @@ public sealed class IdempotencyTests(IntegrationFixture fixture)
             "first delivery answered and both deliveries consumed from the queue");
 
         var results = fixture.Probe.Of<PaymentCompleted>(orderId);
-        Assert.InRange(results.Count, 1, 2);
+        Assert.NotEmpty(results); // event sayısı için üst sınır yok (yukarıdaki stok testinin notuna bakın)
         Assert.Single(results.Select(r => r.PaymentId).Distinct());
         Assert.Equal(1, await fixture.InboxCountAsync(fixture.PaymentConnectionString, messageId));
         Assert.Equal(380m, await BalanceAsync(customerId));

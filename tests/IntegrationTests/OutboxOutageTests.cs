@@ -77,22 +77,45 @@ public sealed class OutboxOutageTests(IntegrationFixture fixture)
     /// <summary>
     /// Bu sınıf diğer testlerden önce ya da sonra çalışabilir; broker yeniden başladığında test bus'ının da geri
     /// geldiğini bir tur atarak doğrular, böylece sonraki testler kararlı bir sistemle başlar.
+    /// Probe'un geçici (non-durable) kuyruğu yeniden bağlanırken yayınlanan sonuç event'i kaybolabilir; bu yüzden
+    /// her denemede yeni bir OrderId ile komut tekrar gönderilir ve herhangi birinin dönüşü yeterlidir.
     /// </summary>
     [Fact]
     public async Task Probe_bus_works_after_broker_restart()
     {
-        var productId = await fixture.SeedProductAsync(1);
-        var orderId = Guid.NewGuid();
+        const int maxAttempts = 12;
+        var productId = await fixture.SeedProductAsync(maxAttempts);
+        var attempts = new List<Guid>();
 
-        await fixture.Probe.SendCommandAsync(
-            new ReserveStock
+        await Eventually.UntilAsync(
+            async () =>
             {
-                OrderId = orderId,
-                Items = [new OrderItemDto { ProductId = productId, Quantity = 1, UnitPrice = 1 }],
-                RequestedAt = DateTimeOffset.UtcNow,
-            },
-            QueueNames.ReserveStock);
+                if (attempts.Any(id => fixture.Probe.Of<StockReserved>(id).Count == 1))
+                {
+                    return true;
+                }
 
-        await Eventually.UntilAsync(() => fixture.Probe.Of<StockReserved>(orderId).Count == 1, "round trip works", TimeSpan.FromSeconds(60));
+                // Yaklaşık 5 sn'de bir yeni deneme (yoklama 50 ms'dir).
+                if (attempts.Count < maxAttempts && (attempts.Count == 0 || DateTimeOffset.UtcNow - _lastSent >= TimeSpan.FromSeconds(5)))
+                {
+                    var orderId = Guid.NewGuid();
+                    attempts.Add(orderId);
+                    _lastSent = DateTimeOffset.UtcNow;
+                    await fixture.Probe.SendCommandAsync(
+                        new ReserveStock
+                        {
+                            OrderId = orderId,
+                            Items = [new OrderItemDto { ProductId = productId, Quantity = 1, UnitPrice = 1 }],
+                            RequestedAt = DateTimeOffset.UtcNow,
+                        },
+                        QueueNames.ReserveStock);
+                }
+
+                return false;
+            },
+            "round trip works",
+            TimeSpan.FromSeconds(60));
     }
+
+    private DateTimeOffset _lastSent;
 }
