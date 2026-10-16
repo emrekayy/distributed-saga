@@ -18,7 +18,7 @@ builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
 builder.Services.AddOpenApi();
 
 builder.Services.AddPaymentsApplication();
-builder.Services.AddPaymentsInfrastructure(builder.Configuration);
+builder.Services.AddPaymentsInfrastructure(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
