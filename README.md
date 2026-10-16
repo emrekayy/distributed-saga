@@ -47,6 +47,26 @@ Bağımlılık yönü: `API → Infrastructure → Application → Domain`. Doma
 - **Central Package Management:** Tüm sürümler `Directory.Packages.props` içinde.
 - **Kalite kapısı:** `TreatWarningsAsErrors`, nullable reference types açık.
 
+## Garantiler
+
+Aşağıdaki her garanti otomatik bir testle kanıtlanır (gerçek Postgres + RabbitMQ, Testcontainers). Hangi testin neyi nasıl
+kanıtladığı: [`docs/testing.md`](docs/testing.md).
+
+| Garanti | Kanıt |
+|---|---|
+| **Ya hep ya hiç** — stok negatife düşmez, aşırı satış olmaz | 10 stoğa 50 paralel rezervasyon: tam 10 başarılı; DB `CHECK` kısıtı |
+| **Çift tahsilat yok** — bakiye negatife düşmez, siparişe tek tahsilat | Aşan 20 paralel ödeme; aynı OrderId ile eşzamanlı iki komut (`23505` + retry) |
+| **Idempotent tüketim** — tekrar eden mesaj tek etki bırakır | Aynı MessageId (Inbox); farklı MessageId + aynı OrderId (iş anahtarı) |
+| **Deadlock yok** — çoklu ürünlü siparişler | Ters sıralı kalemlerle 60 paralel sipariş; `40P01` ve `pg_stat_database.deadlocks` değişmez |
+| **Mesaj kaybı yok** — transactional outbox | Broker kapalıyken `POST /orders` 202 döner; broker dönünce saga ilerler |
+| **Telafi** — stok ve ödeme iadesi | Ödeme reddi → stok iadesi; timeout → stok iadesi; timeout sonrası geç ödeme → otomatik refund |
+| **Hata altında tutarlılık** | Geçici hata retry ile atlatılır; kalıcı hata `_error` kuyruğuna düşer, saga timeout ile telafi eder |
+
+```bash
+dotnet test DistributedSaga.sln -v q --nologo --filter "Category!=Integration"    # hızlı birim testler
+dotnet test tests/IntegrationTests -v q --nologo --filter "Category=Integration"   # Docker gerekir
+```
+
 ## Demo
 
 Üç servis (Ordering saga'yı yönetir, Inventory stoğu, Payments cüzdanı) RabbitMQ üzerinden konuşur; servisler arası

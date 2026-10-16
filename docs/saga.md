@@ -84,7 +84,7 @@ Instance'ı olmayan bir event (bilinmeyen OrderId) ise bilinçli olarak fault �
 
 - `AddMassTransitTestHarness` + in-memory saga repository + fake `IOrderRepository`. Zamanlayıcı olarak Quartz yerine
   **in-memory delayed scheduler** (saga arkadaki scheduler'ı bilmez). Harness'ta zamanı ileri alan API yok; timeout
-  testleri `PaymentTimeout = 250 ms` ile çalışır (gerçek ama kısa bekleme). Quartz kurulumu Adım 5 entegrasyon testinde.
+  testleri `PaymentTimeout = 250 ms` ile çalışır (gerçek ama kısa bekleme). Quartz kurulumu entegrasyon testinde (`SagaTests`, `docs/testing.md`).
 - Bekleme: harness'ın `Any()`'si inactivity timeout'a bağlı (Exists() yoklamaları aktivite sayılmaz) ve mesaj işlenmeden
   false dönebiliyor; testler kayıtlı mesajları senkron yoklar (`WaitUntilAsync`).
 - Kapsam: happy path, stok yetersiz, ödeme başarısız, timeout, timeout sonrası geç ödeme → tek refund, çift event,

@@ -10,6 +10,7 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
 - Saga: `docs/saga.md` (state diyagramı, geçiş matrisi, timeout/refund, concurrency; saga'yı değiştirmeden önce oku)
 - Ordering servisi: `docs/ordering-service.md` (API, domain kuralları, persistence, migration/konfigürasyon)
 - Inventory / Payments: `docs/inventory-service.md`, `docs/payments-service.md` (domain, consumer'lar, kilit sırası, API, seed)
+- Testler ve garantiler: `docs/testing.md` (hangi test hangi garantiyi kanıtlıyor; entegrasyon testi yöntemi, beklenen gürültü)
 - Kararlar ve gerekçeleri: `docs/decisions.md` (ADR; bir kararı değiştirmeden önce oku ve kullanıcıya sor)
 - Bilinen tuzaklar: `docs/troubleshooting.md` (build/test/çalıştırma garip davranırsa önce buraya bak)
 
@@ -145,9 +146,9 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [x] **Adım 3** — Ordering servisi + Saga (state machine, EF saga repository, outbox, Quartz timeout, refund)
 - [x] Servis adları: Order/Stock/Payment → Ordering/Inventory/Payments (contract namespace'leri değişmedi)
 - [x] **Adım 4** — Inventory/Payments consumer'ları (idempotent, outbox); 4c: `scripts/e2e.sh` + README "Demo"
-- [ ] **Adım 5** — Hata ve compensation testleri (Testcontainers, Quartz entegrasyonu, stok/ödeme iadesi,
-  eşzamanlılık: 10 stoğa 50 paralel rezervasyon, hata enjeksiyonu)
+- [x] **Adım 5** — Entegrasyon/eşzamanlılık/hata testleri (Testcontainers, `tests/IntegrationTests`; Quartz entegrasyonu,
+  stok/ödeme iadesi, 10 stoğa 50 paralel rezervasyon, Payments FaultInjection, outbox broker kesintisi); `docs/testing.md`
 
-Durum: build 0/0, 113 test yeşil (Ordering 54, Inventory 19, Payments 20, Contracts 10, Messaging 10); e2e 4/4 senaryo geçti.
+Durum: build 0/0, 113 birim testi + 26 entegrasyon testi yeşil (Ordering 54, Inventory 19, Payments 20, Contracts 10, Messaging 10; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
 
 Bir sonraki adıma kullanıcı açıkça söylemeden geçme.

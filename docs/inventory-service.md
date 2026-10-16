@@ -38,4 +38,4 @@ Keyboard 100 · Mouse 50 · **Monitor 0** (yetersiz stok demosu) · Headset 10 (
 
 `tests/Inventory.UnitTests`: domain (ya hep ya hiç, release idempotency, doğrulama) ve consumer testleri (MassTransit test
 harness + bellek içi repository): tekrar eden komut işlemi tekrarlamaz, aynı sonucu yeniden yayınlar; Release kayıt
-yokken de `StockReleased` döner. Gerçek kilit/eşzamanlılık testleri Adım 5'te Testcontainers ile.
+yokken de `StockReleased` döner. Gerçek kilit/eşzamanlılık testleri (10 stoğa 50 paralel rezervasyon, deadlock yok) `tests/IntegrationTests` içindedir: bkz. `docs/testing.md`.
