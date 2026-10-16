@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Services\Stock\Stock.Domain\Stock.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Stock\Stock.Application\Stock.Application.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
   </ItemGroup>
 
 </Project>
