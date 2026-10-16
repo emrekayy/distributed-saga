@@ -57,7 +57,7 @@ SHA-256'sı, kalem sırasından bağımsız. → Eşzamanlı aynı key unique in
 aynı anahtarlar env var. → `appsettings.json`'da secret yok.
 
 **ADR-018 — Saga testlerinde in-memory delayed scheduler.** Quartz `SystemTime` ile test kırılgan ve testleri seri
-çalıştırır. → Saga scheduler'dan bağımsız test edilir (250 ms timeout); Quartz Adım 5 entegrasyon testinde.
+çalıştırır. → Saga scheduler'dan bağımsız test edilir (250 ms timeout); Quartz entegrasyon testinde (`SagaTests`, `docs/testing.md`).
 
 **ADR-019 — Contract dışı, kalıcı/schedule edilen mesajların adı sabitlenir.** MassTransit mesaj tipini (URN) ve
 exchange adını varsayılan olarak CLR namespace'inden türetir; Quartz bekleyen job'larda mesaj tipini saklar
@@ -80,7 +80,7 @@ RepeatableRead'de kilidi bekleyen transaction, kilit açılınca `40001 serializ
 sayar ve retry'a girer, yani kaçındığımız retry fırtınası geri gelir. ReadCommitted'da bekleyen transaction kilit açılınca
 güncel satırı okur. Varsayılanın RepeatableRead olduğu `OutboxIsolationLevelTests` ile korunur; MassTransit değiştirirse
 karar yeniden değerlendirilir. Ordering'in davranışı değişmez (parametre verilmez). Stok negatife düşmez: DB'de ayrıca
-`CHECK ("AvailableQuantity" >= 0)` vardır. Yarış testi (10 stoğa 50 paralel rezervasyon) Adım 5'te Testcontainers ile.
+`CHECK ("AvailableQuantity" >= 0)` vardır. Yarış testi (10 stoğa 50 paralel rezervasyon) Testcontainers ile `tests/IntegrationTests` içinde (`docs/testing.md`).
 
 **ADR-021 — `BuildingBlocks.Web` ve ortak para kolonu.** Health endpoint'leri ve ProblemDetails tabanı üç API'de aynıdır;
 kopyalamak yerine `BuildingBlocks.Web` (yalnızca `FrameworkReference Microsoft.AspNetCore.App`, NuGet paketi yok) vardır.

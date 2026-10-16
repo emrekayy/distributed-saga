@@ -87,9 +87,44 @@ public sealed class ConcurrencyTests(IntegrationFixture fixture)
             return fixture.Probe.SendCommandAsync(Reserve(orderId, (x, 1), (y, 1), (z, 1)), QueueNames.ReserveStock);
         }));
 
-        await Eventually.UntilAsync(
-            () => orderIds.All(o => fixture.Probe.Of<StockReserved>(o).Count == 1),
-            "all 60 mixed-order reservations reserved");
+        Xunit.Sdk.XunitException? incomplete = null;
+        try
+        {
+            await Eventually.UntilAsync(
+                () => orderIds.All(o => fixture.Probe.Of<StockReserved>(o).Count == 1),
+                "all 60 mixed-order reservations reserved");
+        }
+        catch (Xunit.Sdk.XunitException exception)
+        {
+            incomplete = exception;
+        }
+
+        // Retry deadlock'u gizleyebileceği için iki ayrı kanıt: EF'in gördüğü her 40P01 komut hatası ve DB'nin deadlock
+        // sayacı. Önce deadlock kanıtı raporlanır; yoksa tamamlanmama yalnızca zaman aşımı gibi görünürdü.
+        var observed = fixture.InventoryDbFailures.Count("40P01") - observedBefore;
+        if (observed > 0)
+        {
+            var statDelta = 0L;
+            try
+            {
+                // Diğer backend'lerin istatistik payı gecikmeli yazılır; yalnızca hata durumunda beklenir.
+                await Eventually.UntilAsync(
+                    async () => (statDelta = await fixture.DeadlockCountAsync("stock_db") - deadlocksBefore) > 0,
+                    "pg_stat_database.deadlocks to reflect the deadlocks",
+                    TimeSpan.FromSeconds(20));
+            }
+            catch (Xunit.Sdk.XunitException)
+            {
+                // Sayaç henüz görünmüyor; 40P01 kanıtı yeterli.
+            }
+
+            Assert.Fail($"Deadlocks detected: {observed} x 40P01 command failures, pg_stat_database.deadlocks +{statDelta}.");
+        }
+
+        if (incomplete is not null)
+        {
+            throw incomplete;
+        }
 
         await using var db = fixture.CreateStockDb();
         foreach (var id in new[] { a, b, c })
@@ -97,8 +132,6 @@ public sealed class ConcurrencyTests(IntegrationFixture fixture)
             Assert.Equal(940, await db.Products.AsNoTracking().Where(p => p.Id == id).Select(p => p.AvailableQuantity).SingleAsync());
         }
 
-        // Retry deadlock'u gizleyebileceği için iki ayrı kanıt: EF'in gördüğü her 40P01 komut hatası ve DB'nin deadlock sayacı.
-        Assert.Equal(observedBefore, fixture.InventoryDbFailures.Count("40P01"));
         Assert.Equal(deadlocksBefore, await fixture.DeadlockCountAsync("stock_db"));
     }
 

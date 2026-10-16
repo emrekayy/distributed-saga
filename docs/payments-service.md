@@ -41,9 +41,25 @@ komut TTL dolunca düşer, servis açılınca işlenmez.
 Seed (sabit Id, yalnızca eksikler eklenir): `6f1c2b8e-3a4d-4f5e-9a7b-1c2d3e4f5a6b` zengin (1.000.000 TRY),
 `b2b2b2b2-0000-0000-0000-000000000002` az bakiyeli (100 TRY).
 
+## Hata enjeksiyonu (yalnızca Development/Testing)
+
+`FaultInjection` ayarları (`FaultInjectionOptions`) `ProcessPayment` consumer'ının önüne, retry ve EF outbox'ın **içine**
+bir filtre koyar (consumer düzeyinde; endpoint düzeyindeki filtre retry'ın dışında kalırdı). Çalışma anında değiştirilebilir
+(`IOptionsMonitor`):
+
+| Ayar | Anlamı |
+|---|---|
+| `Enabled` | Ana şalter. Development/Testing dışında `true` ise seçenek doğrulaması başarısız olur, uygulama başlamaz. |
+| `TransientFailureRate` (0..1), `MaxTransientFailuresPerMessage` (3) | Geçici veritabanı hatası (`NpgsqlException` + timeout) gibi retry'a takılan hata; mesaj başına üst sınır retry limitinin altındadır, mesaj sonunda işlenir. |
+| `PermanentFailure` | Retry'a girmeyen hata; mesaj `payment-process-payment_error` kuyruğuna düşer. Saga timeout ile telafi eder (`Fault<ProcessPayment>` EF outbox rollback'i nedeniyle yayınlanmaz). |
+| `Delay` | Her denemeden önce bekler (yavaş Payments / geç ödeme senaryosu). |
+
+Filtre yalnızca Development/Testing ortamında DI'a kaydedilir; Production'da kod yolu hiç kurulmaz
+(`FaultInjectionProductionTests`). `AddPaymentsInfrastructure(configuration, environment)` bu yüzden `IHostEnvironment` alır.
+
 ## Testler
 
 `tests/Payments.UnitTests`: domain (bakiye düşme/iade, yetersiz bakiye, doğrulama) ve consumer testleri (MassTransit test
 harness + bellek içi repository): tekrar eden komut yeniden tahsilat yapmaz, aynı sonucu yeniden yayınlar; refund kayıt
-yokken / Failed iken / tekrarında da `PaymentRefunded` döner. Hata enjeksiyonu (rastgele hata, gecikme) ve gerçek
-kilit/eşzamanlılık testleri Adım 5'te.
+yokken / Failed iken / tekrarında da `PaymentRefunded` döner. Gerçek kilit/eşzamanlılık, idempotency, hata enjeksiyonu ve saga
+testleri `tests/IntegrationTests` içindedir: bkz. `docs/testing.md`.
