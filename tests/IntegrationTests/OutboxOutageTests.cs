@@ -65,8 +65,13 @@ public sealed class OutboxOutageTests(IntegrationFixture fixture)
         Assert.Equal(8, await stockDb.Products.AsNoTracking().Where(p => p.Id == productId).Select(p => p.AvailableQuantity).SingleAsync());
         await using var paymentDb = fixture.CreatePaymentDb();
         Assert.Equal(700m, await paymentDb.Wallets.AsNoTracking().Where(w => w.CustomerId == customerId).Select(w => w.Balance).SingleAsync());
-        Assert.Single(fixture.Probe.Of<OrderSubmitted>(orderId).Select(m => m.OrderId).Distinct());
-        Assert.Single(fixture.Probe.Of<StockReserved>(orderId));
+
+        // Tek saga instance'ı ve tek rezervasyon (DB kanıtı). Testin kendi probe bus'ı broker yeniden başlarken
+        // yeniden bağlanıyor; OrderSubmitted/StockReserved o aralıkta yayınlanırsa probe onları göremez, bu yüzden
+        // burada probe'a değil DB'ye bakılır (CI'da yavaş runner'da yarış çıkarıyordu).
+        await using var sagaDb = fixture.CreateOrderDb();
+        Assert.Equal(1, await sagaDb.OrderStates.CountAsync(s => s.CorrelationId == orderId));
+        Assert.Equal(1, await stockDb.Reservations.CountAsync(r => r.OrderId == orderId));
     }
 
     /// <summary>
