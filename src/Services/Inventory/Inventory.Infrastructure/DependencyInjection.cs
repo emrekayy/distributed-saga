@@ -16,7 +16,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInventoryInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<InventoryDbContext>(o => o.UseNpgsql(PostgresConnection.Build(configuration, "STOCK")));
+        services.AddDbContext<InventoryDbContext>((sp, o) =>
+            o.UseNpgsql(PostgresConnection.Build(sp.GetRequiredService<IConfiguration>(), "STOCK")));
 
         services.AddScoped<InventoryRepository>();
         services.AddScoped<IProductRepository>(sp => sp.GetRequiredService<InventoryRepository>());

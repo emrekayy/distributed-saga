@@ -16,15 +16,16 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddOrderInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = PostgresConnection.Build(configuration, "ORDER");
-        services.AddDbContext<OrderDbContext>(o => o.UseNpgsql(connectionString));
+        // Connection string DI zamanında çözülür: host konfigürasyonu (env var, test override) tamamen kurulmuş olur.
+        services.AddDbContext<OrderDbContext>((sp, o) =>
+            o.UseNpgsql(PostgresConnection.Build(sp.GetRequiredService<IConfiguration>(), "ORDER")));
 
         services.AddOptions<OrderSagaOptions>()
             .Bind(configuration.GetSection(OrderSagaOptions.SectionName))
             .Validate(o => o.PaymentTimeout > TimeSpan.Zero, "OrderSaga:PaymentTimeout must be positive.")
             .ValidateOnStart();
 
-        AddQuartzScheduler(services, connectionString);
+        AddQuartzScheduler(services);
 
         services.AddScoped<OrderRepository>();
         services.AddScoped<IOrderRepository>(sp => sp.GetRequiredService<OrderRepository>());
@@ -60,7 +61,7 @@ public static class DependencyInjection
     /// Quartz in-process, job'lar order_db'deki "quartz" şemasında (ADO job store). Restart'ta bekleyen
     /// timeout'lar kaybolmaz; clustering birden fazla API instance'ının aynı job'u iki kez çalıştırmasını önler.
     /// </summary>
-    private static void AddQuartzScheduler(IServiceCollection services, string connectionString)
+    private static void AddQuartzScheduler(IServiceCollection services)
     {
         services.AddQuartz(q =>
         {
@@ -71,13 +72,15 @@ public static class DependencyInjection
                 store.UseProperties = true;
                 store.UsePostgres(p =>
                 {
-                    p.ConnectionString = connectionString;
+                    p.ConnectionString = "set-lazily"; // QuartzOptions post-configure ile DI zamanında değişir
                     p.TablePrefix = QuartzSchema.TablePrefix;
                 });
                 store.UseSystemTextJsonSerializer();
                 store.UseClustering();
             });
         });
+        services.AddOptions<QuartzOptions>().PostConfigure<IConfiguration>((options, configuration) =>
+            options["quartz.dataSource.default.connectionString"] = PostgresConnection.Build(configuration, "ORDER"));
         services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true);
     }
 

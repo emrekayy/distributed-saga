@@ -47,6 +47,7 @@ public static class MessagingServiceCollectionExtensions
 
             x.UsingRabbitMq((context, cfg) =>
             {
+                var configuration = context.GetRequiredService<IConfiguration>();
                 cfg.Host(
                     configuration["RABBITMQ_HOST"] ?? "localhost",
                     configuration.GetValue<ushort>("RABBITMQ_AMQP_PORT", 5672),

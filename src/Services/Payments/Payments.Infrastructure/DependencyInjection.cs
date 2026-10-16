@@ -16,7 +16,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddPaymentsInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<PaymentDbContext>(o => o.UseNpgsql(PostgresConnection.Build(configuration, "PAYMENT")));
+        services.AddDbContext<PaymentDbContext>((sp, o) =>
+            o.UseNpgsql(PostgresConnection.Build(sp.GetRequiredService<IConfiguration>(), "PAYMENT")));
 
         services.AddScoped<PaymentRepository>();
         services.AddScoped<IPaymentRepository>(sp => sp.GetRequiredService<PaymentRepository>());
