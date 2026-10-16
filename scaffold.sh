@@ -54,6 +54,11 @@ dotnet sln "$SLN.sln" add --solution-folder "src/BuildingBlocks" \
 
 dotnet add src/BuildingBlocks/BuildingBlocks.Messaging reference src/BuildingBlocks/Shared.Contracts
 
+# Sözleşme mimari testleri (Shared.Contracts'ın bağımlılıksız kalmasını ve isim kurallarını korur)
+new_project xunit Shared.Contracts.Tests tests/Shared.Contracts.Tests
+dotnet sln "$SLN.sln" add --solution-folder "tests" tests/Shared.Contracts.Tests
+dotnet add tests/Shared.Contracts.Tests reference src/BuildingBlocks/Shared.Contracts
+
 # --- Servisler (Clean Architecture: Domain <- Application <- Infrastructure <- API)
 for S in "${SERVICES[@]}"; do
   BASE="src/Services/$S"

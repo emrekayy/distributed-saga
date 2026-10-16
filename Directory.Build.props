@@ -5,6 +5,11 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      Çalıştırılabilir/test projeleri: .NET 9 runtime varsa onu kullanır, yoksa bir üst major
+      runtime'a (yerelde .NET 10) geçer. Hedef framework net9.0 olarak kalır.
+    -->
+    <RollForward>Major</RollForward>
 
     <!-- Kalite kapısı: uyarılar build'i kırar -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
