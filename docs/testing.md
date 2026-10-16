@@ -81,3 +81,13 @@ testin yakaladığı görüldü ve değişiklikler geri alındı (commit'lenmedi
 ## Sorun giderme
 
 Entegrasyon testleri takılırsa `docs/troubleshooting.md` içindeki Docker credential helper notuna bakın.
+
+## CI (GitHub Actions)
+
+`.github/workflows/ci.yml`, her push ve PR'da: **build** (`dotnet build` + `dotnet format --verify-no-changes`) → paralel
+**birim testler**, **entegrasyon testleri** (ubuntu runner'da Docker hazır, Testcontainers çalışır) ve **Docker image build**
+(3 API + migrator, `push: false`). SDK 10 (yerelle aynı), NuGet cache `setup-dotnet`'in `cache` seçeneğiyle; `.trx` sonuçları
+artifact olarak yüklenir (`unit-test-results`, `integration-test-results`). Action'lar commit SHA'sına sabitlidir.
+Yerelde doğrulama: `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12` ve
+`dotnet format DistributedSaga.sln --verify-no-changes`. `.github/dependabot.yml`: nuget, github-actions, docker, docker-compose;
+**MassTransit `>=9.0.0` yok sayılır** (lisans, ADR-002), ayrıca net9.0 ile uyumsuz 10.x paketleri ve postgres/rabbitmq major'ları.
