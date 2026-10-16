@@ -40,10 +40,10 @@ public sealed class IntegrationFixture : IAsyncLifetime
     /// <summary>Saga ödeme timeout'u; timeout testleri bu süreyi bekler, diğerleri hiç tetiklemez.</summary>
     public static readonly TimeSpan PaymentTimeout = TimeSpan.FromSeconds(6);
 
-    private const string AdminUser = "saga_admin";
-    private const string AdminPassword = "Test_Admin_123";
-    private const string RabbitUser = "saga";
-    private const string RabbitPassword = "Test_Rabbit_123";
+    private const string _adminUser = "saga_admin";
+    private const string _adminPassword = "Test_Admin_123";
+    private const string _rabbitUser = "saga";
+    private const string _rabbitPassword = "Test_Rabbit_123";
 
     private PostgreSqlContainer _postgres = null!;
     private RabbitMqContainer _rabbit = null!;
@@ -74,8 +74,8 @@ public sealed class IntegrationFixture : IAsyncLifetime
         _rabbitPort = FreeTcpPort();
 
         _postgres = new PostgreSqlBuilder("postgres:17-alpine")
-            .WithUsername(AdminUser)
-            .WithPassword(AdminPassword)
+            .WithUsername(_adminUser)
+            .WithPassword(_adminPassword)
             .WithEnvironment("ORDER_DB_NAME", "order_db")
             .WithEnvironment("ORDER_DB_USER", "order_svc")
             .WithEnvironment("ORDER_DB_PASSWORD", "Test_Order_123")
@@ -91,8 +91,8 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
         // Sabit host port: broker container'ı durdurulup başlatılınca adres değişmez (outbox testi).
         _rabbit = new RabbitMqBuilder("rabbitmq:4.1-management-alpine")
-            .WithUsername(RabbitUser)
-            .WithPassword(RabbitPassword)
+            .WithUsername(_rabbitUser)
+            .WithPassword(_rabbitPassword)
             .WithEnvironment("RABBITMQ_DEFAULT_VHOST", Vhost)
             .WithPortBinding(_rabbitPort, 5672)
             .Build();
@@ -119,7 +119,7 @@ public sealed class IntegrationFixture : IAsyncLifetime
         InventoryClient = _inventory.CreateClient();
         PaymentsClient = _payments.CreateClient();
 
-        Probe = await MessageProbe.StartAsync(_rabbit.Hostname, (ushort)_rabbitPort, Vhost, RabbitUser, RabbitPassword);
+        Probe = await MessageProbe.StartAsync(_rabbit.Hostname, (ushort)_rabbitPort, Vhost, _rabbitUser, _rabbitPassword);
     }
 
     public async Task DisposeAsync()
@@ -182,7 +182,7 @@ public sealed class IntegrationFixture : IAsyncLifetime
     public async Task<long> DeadlockCountAsync(string database)
     {
         await using var connection = new Npgsql.NpgsqlConnection(
-            $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=postgres;Username={AdminUser};Password={AdminPassword};Pooling=false");
+            $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=postgres;Username={_adminUser};Password={_adminPassword};Pooling=false");
         await connection.OpenAsync();
 
         await using (var prepare = new Npgsql.NpgsqlCommand("SELECT pg_stat_force_next_flush(); SELECT pg_stat_clear_snapshot();", connection))
@@ -199,7 +199,7 @@ public sealed class IntegrationFixture : IAsyncLifetime
     public async Task<long> LockWaitersAsync(string database)
     {
         await using var connection = new Npgsql.NpgsqlConnection(
-            $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=postgres;Username={AdminUser};Password={AdminPassword};Pooling=false");
+            $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=postgres;Username={_adminUser};Password={_adminPassword};Pooling=false");
         await connection.OpenAsync();
         await using var query = new Npgsql.NpgsqlCommand(
             "SELECT count(*) FROM pg_stat_activity WHERE datname = @db AND wait_event_type = 'Lock'", connection);
@@ -377,8 +377,8 @@ public sealed class IntegrationFixture : IAsyncLifetime
         ["RABBITMQ_HOST"] = _rabbit.Hostname,
         ["RABBITMQ_AMQP_PORT"] = _rabbitPort.ToString(System.Globalization.CultureInfo.InvariantCulture),
         ["RABBITMQ_VHOST"] = Vhost,
-        ["RABBITMQ_USER"] = RabbitUser,
-        ["RABBITMQ_PASSWORD"] = RabbitPassword,
+        ["RABBITMQ_USER"] = _rabbitUser,
+        ["RABBITMQ_PASSWORD"] = _rabbitPassword,
         ["OrderSaga:PaymentTimeout"] = PaymentTimeout.ToString("c", System.Globalization.CultureInfo.InvariantCulture),
     };
 

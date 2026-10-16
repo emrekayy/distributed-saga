@@ -6,14 +6,14 @@ namespace Inventory.UnitTests.Domain;
 
 public sealed class ReservationTests
 {
-    private static readonly Guid ProductA = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000001");
-    private static readonly Guid ProductB = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000002");
-    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
+    private static readonly Guid _productA = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000001");
+    private static readonly Guid _productB = Guid.Parse("a1a1a1a1-0000-0000-0000-000000000002");
+    private static readonly DateTimeOffset _now = DateTimeOffset.UtcNow;
 
     private static Dictionary<Guid, Product> Products(int a, int b) => new()
     {
-        [ProductA] = new Product(ProductA, "A", a),
-        [ProductB] = new Product(ProductB, "B", b),
+        [_productA] = new Product(_productA, "A", a),
+        [_productB] = new Product(_productB, "B", b),
     };
 
     [Fact]
@@ -21,11 +21,11 @@ public sealed class ReservationTests
     {
         var products = Products(10, 5);
 
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, 3), new(ProductB, 5)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, 3), new(_productB, 5)], products, _now);
 
         Assert.Equal(ReservationStatus.Reserved, reservation.Status);
-        Assert.Equal(7, products[ProductA].AvailableQuantity);
-        Assert.Equal(0, products[ProductB].AvailableQuantity);
+        Assert.Equal(7, products[_productA].AvailableQuantity);
+        Assert.Equal(0, products[_productB].AvailableQuantity);
     }
 
     [Fact]
@@ -33,12 +33,12 @@ public sealed class ReservationTests
     {
         var products = Products(10, 1);
 
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, 3), new(ProductB, 2)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, 3), new(_productB, 2)], products, _now);
 
         Assert.Equal(ReservationStatus.Rejected, reservation.Status);
         Assert.Equal(RejectionReason.InsufficientStock, reservation.Rejection);
-        Assert.Equal(10, products[ProductA].AvailableQuantity);
-        Assert.Equal(1, products[ProductB].AvailableQuantity);
+        Assert.Equal(10, products[_productA].AvailableQuantity);
+        Assert.Equal(1, products[_productB].AvailableQuantity);
     }
 
     [Fact]
@@ -46,10 +46,10 @@ public sealed class ReservationTests
     {
         var products = Products(10, 5);
 
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, 1), new(Guid.NewGuid(), 1)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, 1), new(Guid.NewGuid(), 1)], products, _now);
 
         Assert.Equal(RejectionReason.ProductNotFound, reservation.Rejection);
-        Assert.Equal(10, products[ProductA].AvailableQuantity);
+        Assert.Equal(10, products[_productA].AvailableQuantity);
     }
 
     [Fact]
@@ -57,10 +57,10 @@ public sealed class ReservationTests
     {
         var products = Products(4, 5);
 
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, 3), new(ProductA, 2)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, 3), new(_productA, 2)], products, _now);
 
         Assert.Equal(RejectionReason.InsufficientStock, reservation.Rejection);
-        Assert.Equal(4, products[ProductA].AvailableQuantity);
+        Assert.Equal(4, products[_productA].AvailableQuantity);
     }
 
     [Theory]
@@ -70,16 +70,16 @@ public sealed class ReservationTests
     {
         var products = Products(10, 5);
 
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, quantity)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, quantity)], products, _now);
 
         Assert.Equal(RejectionReason.ValidationError, reservation.Rejection);
-        Assert.Equal(10, products[ProductA].AvailableQuantity);
+        Assert.Equal(10, products[_productA].AvailableQuantity);
     }
 
     [Fact]
     public void Reserve_rejects_empty_item_list_as_validation_error()
     {
-        var reservation = Reservation.Create(Guid.NewGuid(), [], Products(1, 1), Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [], Products(1, 1), _now);
 
         Assert.Equal(RejectionReason.ValidationError, reservation.Rejection);
     }
@@ -88,35 +88,35 @@ public sealed class ReservationTests
     public void Release_returns_stock_once_and_is_idempotent()
     {
         var products = Products(10, 5);
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, 3), new(ProductB, 2)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, 3), new(_productB, 2)], products, _now);
 
-        Assert.True(reservation.Release(products, Now));
+        Assert.True(reservation.Release(products, _now));
         Assert.Equal(ReservationStatus.Released, reservation.Status);
-        Assert.Equal(10, products[ProductA].AvailableQuantity);
-        Assert.Equal(5, products[ProductB].AvailableQuantity);
+        Assert.Equal(10, products[_productA].AvailableQuantity);
+        Assert.Equal(5, products[_productB].AvailableQuantity);
 
-        Assert.False(reservation.Release(products, Now));
-        Assert.Equal(10, products[ProductA].AvailableQuantity);
+        Assert.False(reservation.Release(products, _now));
+        Assert.Equal(10, products[_productA].AvailableQuantity);
     }
 
     [Fact]
     public void Release_of_rejected_reservation_changes_nothing()
     {
         var products = Products(1, 1);
-        var reservation = Reservation.Create(Guid.NewGuid(), [new(ProductA, 5)], products, Now);
+        var reservation = Reservation.Create(Guid.NewGuid(), [new(_productA, 5)], products, _now);
 
-        Assert.False(reservation.Release(products, Now));
+        Assert.False(reservation.Release(products, _now));
         Assert.Equal(ReservationStatus.Rejected, reservation.Status);
-        Assert.Equal(1, products[ProductA].AvailableQuantity);
+        Assert.Equal(1, products[_productA].AvailableQuantity);
     }
 
     [Fact]
     public void Product_stock_never_goes_negative()
     {
-        var product = new Product(ProductA, "A", 1);
+        var product = new Product(_productA, "A", 1);
 
         Assert.Throws<InventoryDomainException>(() => product.Restock(0));
-        Assert.Throws<InventoryDomainException>(() => new Product(ProductA, "A", -1));
+        Assert.Throws<InventoryDomainException>(() => new Product(_productA, "A", -1));
         Assert.Equal(1, product.AvailableQuantity);
     }
 }

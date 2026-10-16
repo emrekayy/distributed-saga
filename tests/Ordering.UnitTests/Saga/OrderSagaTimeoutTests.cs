@@ -69,7 +69,10 @@ public sealed class OrderSagaTimeoutTests : OrderSagaFixture
 
         await PublishAndWaitAsync(new PaymentRefunded
         {
-            OrderId = orderId, Amount = 399.90m, Currency = "TRY", OccurredAt = DateTimeOffset.UtcNow,
+            OrderId = orderId,
+            Amount = 399.90m,
+            Currency = "TRY",
+            OccurredAt = DateTimeOffset.UtcNow,
         });
         Assert.NotNull(GetSaga(orderId).RefundedAt);
         Assert.Equal(1, SentCount<RefundPayment>(orderId));
