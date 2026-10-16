@@ -1,4 +1,5 @@
 using BuildingBlocks.Messaging.Configuration;
+using BuildingBlocks.Web;
 using Ordering.API.Endpoints;
 using Ordering.API.Infrastructure;
 using Ordering.Application;

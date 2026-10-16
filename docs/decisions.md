@@ -67,3 +67,23 @@ schedule edilen her mesaj `[MessageUrn("<servis>:<kebab-ad>")]` ve `[EntityName(
 (ilk örnek: `PaymentTimeoutExpired` → `urn:message:ordering:payment-timeout-expired`, exchange
 `ordering.payment-timeout-expired`). → Bu tipler namespace'ten bağımsız taşınabilir; adları wire contract gibi
 değiştirilmez ve testle korunur (`InternalMessageNameTests`). Shared.Contracts mesajları sabitlenmez (ADR-006).
+
+**ADR-020 — Inventory/Payments: pessimistic kilit (`FOR UPDATE`) + ReadCommitted outbox.** Bağlam: Ordering'de saga satırı
+başına tek yazar vardır ve çakışma nadirdir; bu yüzden optimistic (xmin) + retry yeterlidir (ADR-011), outbox transaction'ı
+MassTransit varsayılanı RepeatableRead'dir. Inventory'de ise popüler bir ürün satırına çok sayıda sipariş aynı anda yazar;
+optimistic yaklaşımda her çakışan transaction baştan denenir ve çakışma oranı yük arttıkça büyür (retry fırtınası).
+→ Karar: Inventory (ürün satırları) ve Payments (wallet satırı) ilgili satırları `SELECT … FOR UPDATE` ile kilitler; çakışan
+işlemler hata almak yerine sırayla bekler. Inventory birden çok ürün kilitlediği için kilitler **ProductId sırasıyla**
+(`ORDER BY "Id" FOR UPDATE`) alınır; sabit kilit sırası deadlock'u önler. Release'te sıra: rezervasyon satırı, sonra ürünler.
+→ Sonuç: Bu servislerde outbox transaction'ı **ReadCommitted** olmalıdır (`AddMessaging(outboxIsolationLevel: …)`).
+RepeatableRead'de kilidi bekleyen transaction, kilit açılınca `40001 serialization_failure` alır; Npgsql bunu geçici hata
+sayar ve retry'a girer, yani kaçındığımız retry fırtınası geri gelir. ReadCommitted'da bekleyen transaction kilit açılınca
+güncel satırı okur. Varsayılanın RepeatableRead olduğu `OutboxIsolationLevelTests` ile korunur; MassTransit değiştirirse
+karar yeniden değerlendirilir. Ordering'in davranışı değişmez (parametre verilmez). Stok negatife düşmez: DB'de ayrıca
+`CHECK ("AvailableQuantity" >= 0)` vardır. Yarış testi (10 stoğa 50 paralel rezervasyon) Adım 5'te Testcontainers ile.
+
+**ADR-021 — `BuildingBlocks.Web` ve ortak para kolonu.** Health endpoint'leri ve ProblemDetails tabanı üç API'de aynıdır;
+kopyalamak yerine `BuildingBlocks.Web` (yalnızca `FrameworkReference Microsoft.AspNetCore.App`, NuGet paketi yok) vardır.
+Servis, kendi exception eşlemesini `ProblemDetailsExceptionHandlerBase.MapException` ile verir. Para kolonları üç serviste
+`numeric(19,4)`: her DbContext `ConfigureConventions` içinde `UseMoneyPrecision()` çağırır (`BuildingBlocks.Messaging`);
+tek tek `HasPrecision` yazılmaz.

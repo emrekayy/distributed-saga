@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# e2e.sh log ve pid dosyaları
+.e2e/

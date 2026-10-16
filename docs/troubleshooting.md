@@ -15,3 +15,7 @@
 - MassTransit test harness: `Any()` beklemeleri inactivity timeout'a bağlı; yoklama için kayıtlı mesajları senkron
   okuyun (`WaitUntilAsync`). `Publish(message, ctx => …)` callback overload'ları `using MassTransit;` ister.
 - RabbitMQ management API kuyruk istatistikleri ~5 sn gecikmeli; anlık sayım için `rabbitmqctl list_queues`.
+- **Migration eklendikten sonra `dotnet run --no-build`:** `dotnet ef migrations add` dosyaları üretir ama derlemez;
+  yeniden `dotnet build` almadan çalıştırırsan "No migrations were found in assembly" görür ve tablolar oluşmaz.
+- **`FOR UPDATE` ve izolasyon:** Pessimistic kilit kullanan servislerin outbox'ı ReadCommitted olmalı (ADR-020);
+  RepeatableRead'de bekleyen transaction `40001` ile retry'a düşer.
