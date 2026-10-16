@@ -54,6 +54,10 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
     public ConsumeActivityObserver PaymentsConsumers { get; } = new();
 
+    public DbFailureLog InventoryDbFailures { get; } = new();
+
+    public DbFailureLog PaymentsDbFailures { get; } = new();
+
     public HttpClient OrderingClient { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -90,8 +94,16 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
         var settings = BuildSettings();
         _ordering = new ServiceFactory<OrderingApiMarker>(settings);
-        _inventory = new ServiceFactory<InventoryApiMarker>(settings, s => s.AddConsumeObserver(_ => InventoryConsumers));
-        _payments = new ServiceFactory<PaymentsApiMarker>(settings, s => s.AddConsumeObserver(_ => PaymentsConsumers));
+        _inventory = new ServiceFactory<InventoryApiMarker>(settings, s =>
+        {
+            s.AddConsumeObserver(_ => InventoryConsumers);
+            s.ConfigureDbContext<InventoryDbContext>(InventoryDbFailures.Attach);
+        });
+        _payments = new ServiceFactory<PaymentsApiMarker>(settings, s =>
+        {
+            s.AddConsumeObserver(_ => PaymentsConsumers);
+            s.ConfigureDbContext<PaymentDbContext>(PaymentsDbFailures.Attach);
+        });
 
         // Host'lar (MassTransit bus, Quartz) CreateClient ile başlar.
         OrderingClient = _ordering.CreateClient();
@@ -169,6 +181,28 @@ public sealed class IntegrationFixture : IAsyncLifetime
 
         await using var query = new Npgsql.NpgsqlCommand("SELECT deadlocks FROM pg_stat_database WHERE datname = @db", connection);
         query.Parameters.AddWithValue("db", database);
+        return (long)(await query.ExecuteScalarAsync() ?? 0L);
+    }
+
+    /// <summary>Verilen veritabanında kilit bekleyen backend sayısı (pg_stat_activity).</summary>
+    public async Task<long> LockWaitersAsync(string database)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(
+            $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=postgres;Username={AdminUser};Password={AdminPassword};Pooling=false");
+        await connection.OpenAsync();
+        await using var query = new Npgsql.NpgsqlCommand(
+            "SELECT count(*) FROM pg_stat_activity WHERE datname = @db AND wait_event_type = 'Lock'", connection);
+        query.Parameters.AddWithValue("db", database);
+        return (long)(await query.ExecuteScalarAsync() ?? 0L);
+    }
+
+    /// <summary>MassTransit inbox kaydı sayısı (aynı MessageId için tek kayıt olmalı).</summary>
+    public async Task<long> InboxCountAsync(string connectionString, Guid messageId)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var query = new Npgsql.NpgsqlCommand("SELECT count(*) FROM \"InboxState\" WHERE \"MessageId\" = @id", connection);
+        query.Parameters.AddWithValue("id", messageId);
         return (long)(await query.ExecuteScalarAsync() ?? 0L);
     }
 
