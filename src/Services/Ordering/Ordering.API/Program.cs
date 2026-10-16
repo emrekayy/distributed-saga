@@ -1,4 +1,5 @@
 using BuildingBlocks.Messaging.Configuration;
+using BuildingBlocks.Observability;
 using BuildingBlocks.Web;
 using Ordering.API.Endpoints;
 using Ordering.API.Infrastructure;
@@ -14,6 +15,8 @@ if (builder.Environment.IsDevelopment())
     // Secret'lar repoda değil, kökteki .env'de (git'e girmez). Container'da ortam değişkenleri kullanılır.
     builder.Configuration.AddDotEnvFromParentDirectories(builder.Environment.ContentRootPath);
 }
+
+builder.AddObservability("ordering");
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();

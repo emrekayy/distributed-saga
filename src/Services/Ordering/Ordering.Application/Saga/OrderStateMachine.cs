@@ -1,4 +1,6 @@
 using MassTransit;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shared.Contracts.Common;
 using Shared.Contracts.Orders.Events;
@@ -27,10 +29,13 @@ public sealed class OrderStateMachine : MassTransitStateMachine<OrderState>
     private readonly TimeProvider _clock;
     private readonly TimeSpan _paymentTimeout;
 
-    public OrderStateMachine(TimeProvider clock, IOptions<OrderSagaOptions> options)
+    public OrderStateMachine(TimeProvider clock, IOptions<OrderSagaOptions> options, ILogger<OrderStateMachine>? logger = null)
     {
         _clock = clock;
         _paymentTimeout = options.Value.PaymentTimeout;
+
+        // Her state geçişi tek satır: "Order {OrderId} state: Old -> New" (denetim/izleme için).
+        this.ConnectStateObserver(new TransitionLogObserver(logger ?? NullLogger<OrderStateMachine>.Instance));
 
         InstanceState(x => x.CurrentState);
 

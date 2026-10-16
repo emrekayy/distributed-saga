@@ -39,6 +39,12 @@ x-api-env: &api-env
   RABBITMQ_VHOST: ${RABBITMQ_VHOST:-saga}
   RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER tanımlı değil}
   RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD tanımlı değil}
+  # OpenTelemetry: trace -> Jaeger, metrik -> Prometheus (ikisi "observability" profilinde). Profil kapalıyken adresler
+  # çözümlenemez; exporter hatayı sessizce yutar, uygulama etkilenmez.
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_TRACES_ENDPOINT:-http://jaeger:4318/v1/traces}
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${OTEL_METRICS_ENDPOINT:-http://prometheus:9090/api/v1/otlp/v1/metrics}
+  OTEL_METRIC_EXPORT_INTERVAL: "15000"
   # DEMO: Production varsayılanı ikisi de kapalı; compose demosunda bilerek açık (e2e ve "siparişi izle" için).
   Seed__Enabled: "true"
   InternalEndpoints__Enabled: "true"
@@ -117,8 +123,11 @@ services:
     ports:
       - "${RABBITMQ_AMQP_PORT:-5672}:5672"
       - "${RABBITMQ_UI_PORT:-15672}:15672"
+      - "${RABBITMQ_PROMETHEUS_PORT:-15692}:15692"   # rabbitmq_prometheus plugin (kuyruk metrikleri, _error dahil)
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      # + shovel: _error kuyruğundaki mesajları elle geri taşımak için ("Move messages", README: _error queues)
+      - ./deploy/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 15s
@@ -241,8 +250,49 @@ services:
       test: ["CMD", "dotnet", "Payments.API.dll", "--health-probe", "http://localhost:8080/health/ready"]
       <<: *api-health
 
+  # ---------------------------------------------------------------------------
+  # Gözlemlenebilirlik (opsiyonel): docker compose --profile app --profile observability up -d
+  #   Jaeger UI  http://localhost:16686   (trace)
+  #   Prometheus http://localhost:9090    (metrik: .NET, MassTransit, RabbitMQ kuyrukları; uyarı kuralları)
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    container_name: saga-jaeger
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"   # dotnet run ile yerelde çalışan servisler için (OTEL_EXPORTER_OTLP_*)
+    logging: *default-logging
+    networks:
+      - saga-net
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    container_name: saga-prometheus
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver       # servisler metrikleri OTLP/HTTP ile gönderir
+      - --storage.tsdb.retention.time=2d
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+    networks:
+      - saga-net
+
 volumes:
   postgres-data:
+  prometheus-data:
   rabbitmq-data:
   pgadmin-data:
 

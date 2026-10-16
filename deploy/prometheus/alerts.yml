@@ -1,0 +1,20 @@
+# _error kuyrukları: MassTransit, retry'ları tükenen mesajları <kuyruk>_error kuyruğuna taşır. Orada mesaj varsa
+# bir insanın bakması gerekir; mesajlar otomatik yeniden kuyruğa alınmaz (README: "Dead-letter / _error queues").
+groups:
+  - name: saga-error-queues
+    rules:
+      - alert: ErrorQueueNotEmpty
+        expr: rabbitmq_detailed_queue_messages_ready{queue=~".*_error"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.queue }} içinde {{ $value }} mesaj var"
+          description: "Retry'ları tükenen mesajlar. Nedenini inceleyip RabbitMQ UI'dan (Shovel / Move messages) geri taşıyın."
+      - alert: SkippedQueueNotEmpty
+        expr: rabbitmq_detailed_queue_messages_ready{queue=~".*_skipped"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.queue }} içinde {{ $value }} mesaj var (consumer'ın tanımadığı mesaj tipi)"
