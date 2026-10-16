@@ -19,3 +19,9 @@
   yeniden `dotnet build` almadan çalıştırırsan "No migrations were found in assembly" görür ve tablolar oluşmaz.
 - **`FOR UPDATE` ve izolasyon:** Pessimistic kilit kullanan servislerin outbox'ı ReadCommitted olmalı (ADR-020);
   RepeatableRead'de bekleyen transaction `40001` ile retry'a düşer.
+- **Entegrasyon testleri hiç başlamıyor / takılıyor:** Testcontainers imaj çekmeden önce `docker-credential-desktop get`
+  çağırır; etkileşimsiz ortamda (anahtarlık izni) bu süreç sonsuza kadar bekleyebilir. Çözüm: boş bir Docker config dizini
+  verin: `mkdir -p /tmp/dockercfg && echo '{"auths":{}}' > /tmp/dockercfg/config.json` ve `DOCKER_CONFIG=/tmp/dockercfg dotnet test …`.
+- **Entegrasyon testleri tek collection'dır:** Quartz scheduler adı process genelinde tekil (`order-service`), process'te tek
+  Ordering host'u olabilir. Test host'ları `Testing` ortamında çalışır (`.env`, startup migration/seed yok); ayarlar bellek içi
+  konfigürasyondan gelir, bu yüzden connection string'ler DI zamanında çözülür (yoksa override'lar geç kalır).

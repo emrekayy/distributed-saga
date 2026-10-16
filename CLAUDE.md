@@ -58,7 +58,8 @@ DistributedSaga/
 │       ├── Ordering/  Ordering.Domain · Ordering.Application · Ordering.Infrastructure · Ordering.API
 │       ├── Inventory/ Inventory.Domain · Inventory.Application · Inventory.Infrastructure · Inventory.API
 │       └── Payments/  Payments.Domain · Payments.Application · Payments.Infrastructure · Payments.API
-├── tests/            Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (→ Domain + Application + Messaging)
+├── tests/            IntegrationTests (Testcontainers: Postgres + RabbitMQ, 3 API in-process)
+│                     Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (→ Domain + Application + Messaging)
 │                     Shared.Contracts.Tests (sözleşme mimari testleri) · BuildingBlocks.Messaging.Tests (retry)
 ├── docs/                                        # Ayrıntılar (yukarıdaki listeye bak)
 ├── scripts/e2e.sh                               # 4 uçtan uca senaryo (gerçek altyapı, 3 servis)
@@ -83,7 +84,8 @@ dotnet tool restore                 # dotnet-ef
 
 # Build / test (bkz. "Komut çıktısı")
 dotnet build DistributedSaga.sln -v q -clp:ErrorsOnly -nologo
-dotnet test DistributedSaga.sln -v q --nologo
+dotnet test DistributedSaga.sln -v q --nologo --filter "Category!=Integration"   # hızlı: birim testler (Docker gerekmez)
+dotnet test tests/IntegrationTests -v q --nologo --filter "Category=Integration"  # Testcontainers (Docker şart), tek collection, sıralı
 dotnet list DistributedSaga.sln package --outdated   # MassTransit'i yalnızca 8.x içinde güncelle
 
 # EF Core migration (Ordering)
