@@ -10,7 +10,7 @@ Bu dosya projeyi geliştirenler içindir: değişmez teknik kurallar, klasör ya
 - Mesaj akışı ve contract kuralları: [`messaging.md`](messaging.md) (contract'lara/kuyruk adlarına dokunmadan önce okuyun)
 - Saga: [`saga.md`](saga.md) (state diyagramı, geçiş matrisi, timeout/refund, concurrency; saga'yı değiştirmeden önce okuyun)
 - Ordering servisi: [`ordering-service.md`](ordering-service.md) (API, domain kuralları, persistence, migration/konfigürasyon)
-- Inventory / Payments: [`inventory-service.md`](inventory-service.md), `payments-service.md` (domain, consumer'lar, kilit sırası, API, seed)
+- Inventory / Payments: [`inventory-service.md`](inventory-service.md), [`payments-service.md`](payments-service.md) (domain, consumer'lar, kilit sırası, API, seed)
 - Testler ve garantiler: [`testing.md`](testing.md) (hangi test hangi garantiyi kanıtlıyor; entegrasyon testi yöntemi, beklenen gürültü)
 - Kararlar ve gerekçeleri: [`decisions.md`](decisions.md) (ADR; bir kararı değiştirmeden önce okuyun ve tartışın)
 - Gözlemlenebilirlik: [`observability.md`](observability.md) (trace/metrik/log, `_error` kuyrukları ve redrive)
