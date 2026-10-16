@@ -1,0 +1,129 @@
+# =============================================================================
+#  Distributed Saga - Altyapı (Adım 1)
+#  Kullanım:
+#    cp .env.example .env
+#    docker compose up -d                  # postgres + rabbitmq
+#    docker compose --profile tools up -d  # + pgAdmin
+#  Servis container'ları (order/stock/payment API) Adım 3-4'te eklenecek.
+# =============================================================================
+name: distributed-saga
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL: Tek instance, servis başına AYRI veritabanı + AYRI kullanıcı.
+  # Her servis yalnızca kendi DB'sine yetkili (least privilege). Database-per-
+  # Service sınırı mantıksal olarak korunur; canlıda her DB ayrı instance /
+  # managed service'e taşınabilir, connection string dışında kod değişmez.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: saga-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:?POSTGRES_ADMIN_USER tanımlı değil}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD tanımlı değil}
+      POSTGRES_DB: postgres
+      # init script'i tarafından okunur (deploy/postgres/init)
+      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
+      ORDER_DB_USER: ${ORDER_DB_USER:-order_svc}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?ORDER_DB_PASSWORD tanımlı değil}
+      STOCK_DB_NAME: ${STOCK_DB_NAME:-stock_db}
+      STOCK_DB_USER: ${STOCK_DB_USER:-stock_svc}
+      STOCK_DB_PASSWORD: ${STOCK_DB_PASSWORD:?STOCK_DB_PASSWORD tanımlı değil}
+      PAYMENT_DB_NAME: ${PAYMENT_DB_NAME:-payment_db}
+      PAYMENT_DB_USER: ${PAYMENT_DB_USER:-payment_svc}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?PAYMENT_DB_PASSWORD tanımlı değil}
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - log_min_duration_statement=500   # 500ms üzeri sorguları logla
+      - -c
+      - log_lock_waits=on                # concurrency sorunlarını görünür kıl
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      - saga-net
+
+  # ---------------------------------------------------------------------------
+  # RabbitMQ (management UI: http://localhost:15672)
+  # hostname sabit: RabbitMQ veri dizinini node adına göre tutar; hostname
+  # değişirse volume'daki kuyruklar "kaybolmuş" gibi görünür.
+  # ---------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    container_name: saga-rabbitmq
+    hostname: saga-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER tanımlı değil}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD tanımlı değil}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-saga}
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_UI_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - saga-net
+
+  # ---------------------------------------------------------------------------
+  # pgAdmin (opsiyonel): docker compose --profile tools up -d
+  # http://localhost:5050
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: saga-pgadmin
+    profiles: ["tools"]
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@saga.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD tanımlı değil}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - saga-net
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  pgadmin-data:
+
+networks:
+  saga-net:
+    name: saga-net
+    driver: bridge

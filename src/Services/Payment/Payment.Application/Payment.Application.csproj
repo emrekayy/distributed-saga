@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Payment.Domain\Payment.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Shared.Contracts\Shared.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

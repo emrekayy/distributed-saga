@@ -1,0 +1,39 @@
+<Project>
+  <!--
+    Central Package Management: sürümler YALNIZCA burada tanımlanır,
+    .csproj dosyalarında <PackageReference Include="..." /> sürümsüz yazılır.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Messaging">
+    <!--
+      ÖNEMLİ: MassTransit v9 ticari lisanslıdır. v8 açık kaynak (Apache 2.0) olarak
+      kalıyor. Bu proje bilinçli olarak v8 hattında tutulur; v9'a yükseltmeyin.
+      Güncel 8.x yamasını görmek için "dotnet list package" komutunu outdated
+      seçeneğiyle çalıştırın (XML yorumunda çift tire kullanılamaz).
+    -->
+    <PackageVersion Include="MassTransit" Version="8.5.11" />
+    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.5.11" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.11" />
+  </ItemGroup>
+
+  <ItemGroup Label="Persistence">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup Label="API">
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+  </ItemGroup>
+</Project>
