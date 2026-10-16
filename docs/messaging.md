@@ -49,6 +49,11 @@ Sabit, wire contract'ın parçası: `BuildingBlocks.Messaging.QueueNames` → `s
 (`EndpointConvention`); saga `Send`'i adres vermeden çağırır, Application katmanı kuyruk adlarını bilmez.
 Inventory/Payments consumer endpoint'leri bu adlarla açılmalı. Saga endpoint'i: `order-state` (OrderState tip adından).
 
+Consumer endpoint'leri (Inventory/Payments): `ConsumerDefinition.EndpointName = QueueNames.X`; dışta retry
+(`UseTransientDatabaseRetry` + servisin domain exception'ı Ignore), içte `UseEntityFrameworkOutbox`. Ayrıntı:
+`docs/inventory-service.md`, `docs/payments-service.md`. Hatalı girdi (boş kalem, quantity/amount ≤ 0, para birimi
+uyuşmazlığı) exception değil, kaydedilmiş bir `VALIDATION_ERROR` sonucudur.
+
 Contract dışı, kalıcı/schedule edilen mesajların URN ve exchange adı attribute ile sabittir (ADR-019):
 `PaymentTimeoutExpired` → `urn:message:ordering:payment-timeout-expired` / `ordering.payment-timeout-expired`.
 

@@ -1,6 +1,9 @@
-@Payment.API_HostAddress = http://localhost:5168
+@host = http://localhost:5300
 
-GET {{Payment.API_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{host}}/wallets/6f1c2b8e-3a4d-4f5e-9a7b-1c2d3e4f5a6b
 
 ###
+POST {{host}}/wallets/b2b2b2b2-0000-0000-0000-000000000002/top-up
+Content-Type: application/json
+
+{ "amount": 50, "currency": "TRY" }
