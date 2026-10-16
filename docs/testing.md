@@ -91,3 +91,14 @@ artifact olarak yüklenir (`unit-test-results`, `integration-test-results`). Act
 Yerelde doğrulama: `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12` ve
 `dotnet format DistributedSaga.sln --verify-no-changes`. `.github/dependabot.yml`: nuget, github-actions, docker, docker-compose;
 **MassTransit `>=9.0.0` yok sayılır** (lisans, ADR-002), ayrıca net9.0 ile uyumsuz 10.x paketleri ve postgres/rabbitmq major'ları.
+
+## Yayın öncesi secret taraması
+
+```bash
+docker run --rm -v "$PWD":/repo zricethezav/gitleaks:v8.30.1 git /repo --no-banner --redact   # tüm git geçmişi
+docker run --rm -v "$PWD":/repo zricethezav/gitleaks:v8.30.1 dir /repo --no-banner --redact   # çalışma ağacı
+```
+
+`.gitleaks.toml` yalnızca Testcontainers'ın geçici container parolalarını (`IntegrationFixture.cs`) allowlist'e alır; diğer her şey
+varsayılan kurallarla taranır. `.env` hiçbir commit'te yoktur (`git log --all -- .env` boş) ve değerleri `.env.example`
+yer tutucularıyla aynıdır (`ChangeMe_*`); gerçek bir secret `.env`'e konursa yine git'e girmez (`.gitignore`).

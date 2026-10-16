@@ -73,6 +73,7 @@ DistributedSaga/
 ├── deploy/migrator/                             # EF migration bundle imajı + migrate.sh (init container)
 ├── deploy/postgres/init/01-init-databases.sh   # İlk açılışta DB + kullanıcıları oluşturur
 ├── docker-compose.yml · .env.example (.env git'e girmez)
+├── README.md (İngilizce) · LICENSE (MIT) · .gitleaks.toml
 ├── Directory.Build.props · Directory.Packages.props · global.json · .editorconfig
 ├── .github/                                     # workflows/ci.yml (build+format, birim, entegrasyon, docker build) + dependabot.yml
 ├── scaffold.sh                                  # Solution iskeleti (idempotent)
@@ -160,7 +161,8 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [x] **Adım 5** — Entegrasyon/eşzamanlılık/hata testleri (Testcontainers, `tests/IntegrationTests`; Quartz entegrasyonu,
   stok/ödeme iadesi, 10 stoğa 50 paralel rezervasyon, Payments FaultInjection, outbox broker kesintisi); `docs/testing.md`
 
-- [ ] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar ✅ · 6b gözlemlenebilirlik ✅ · 6c CI ✅ · 6d README/LICENSE/secret taraması
+- [x] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar · 6b gözlemlenebilirlik · 6c CI · 6d İngilizce README, LICENSE (MIT),
+  gitleaks taraması (`.gitleaks.toml`). GitHub'a push kullanıcıda; CI'ın gerçek koşusu push sonrası
 
 Durum: build 0/0, 125 birim testi + 26 entegrasyon testi yeşil (Ordering 55, Inventory 19, Payments 20, Contracts 10, Messaging 21; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
 

@@ -1,0 +1,10 @@
+# Reviewed false positive: throwaway credentials for the Testcontainers Postgres/RabbitMQ instances that exist only
+# for the duration of a test run. Everything else is scanned with the default ruleset.
+title = "distributed-saga gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Testcontainers test credentials (ephemeral containers)"
+paths = ['''tests/IntegrationTests/Support/IntegrationFixture\.cs''']
