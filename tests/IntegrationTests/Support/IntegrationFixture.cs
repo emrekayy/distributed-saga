@@ -6,11 +6,16 @@ using Inventory.Domain.Products;
 using Inventory.Infrastructure.Persistence;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Json;
 using Ordering.API;
+using Ordering.API.Endpoints;
 using Ordering.Infrastructure.Persistence;
 using Payments.API;
 using Payments.Domain.Wallets;
+using Payments.Infrastructure.FaultInjection;
 using Payments.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -233,6 +238,65 @@ public sealed class IntegrationFixture : IAsyncLifetime
         db.Wallets.Add(wallet);
         await db.SaveChangesAsync();
         return wallet.CustomerId;
+    }
+
+    // --- Sipariş API'si -----------------------------------------------------------------------------------------
+
+    public async Task<Guid> SubmitOrderAsync(Guid customerId, params (Guid ProductId, int Quantity, decimal UnitPrice)[] items)
+    {
+        var request = new SubmitOrderRequest(
+            customerId, "TRY", items.Select(i => new SubmitOrderItemRequest(i.ProductId, i.Quantity, i.UnitPrice)).ToList());
+        using var message = new HttpRequestMessage(HttpMethod.Post, "/orders") { Content = JsonContent.Create(request) };
+        message.Headers.Add(OrderEndpoints.IdempotencyKeyHeader, Guid.NewGuid().ToString());
+
+        using var response = await OrderingClient.SendAsync(message);
+        Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<OrderResponse>())!.Id;
+    }
+
+    public async Task<OrderResponse> GetOrderAsync(Guid orderId) =>
+        (await OrderingClient.GetFromJsonAsync<OrderResponse>($"/orders/{orderId}"))!;
+
+    /// <summary>Sipariş verilen duruma ulaşana kadar yoklar (zaman aşımı Eventually'de).</summary>
+    public async Task<OrderResponse> WaitForOrderAsync(Guid orderId, string status, TimeSpan? timeout = null)
+    {
+        OrderResponse? last = null;
+        await Eventually.UntilAsync(
+            async () => (last = await GetOrderAsync(orderId)).Status == status,
+            $"order {orderId} to become {status}",
+            timeout);
+        return last!;
+    }
+
+    // --- Hata enjeksiyonu (Payments) ------------------------------------------------------------------------------
+
+    public FaultInjectionFilter PaymentsFaultFilter => _payments.Services.GetRequiredService<FaultInjectionFilter>();
+
+    /// <summary>FaultInjection ayarlarını çalışma anında açar; dönen nesne Dispose edilince kapatır.</summary>
+    public IDisposable InjectPaymentFaults(
+        double transientFailureRate = 0, int maxTransientFailuresPerMessage = 3, bool permanentFailure = false, TimeSpan? delay = null)
+    {
+        SetPaymentFaults(true, transientFailureRate, maxTransientFailuresPerMessage, permanentFailure, delay ?? TimeSpan.Zero);
+        return new FaultScope(() => SetPaymentFaults(false, 0, 3, false, TimeSpan.Zero));
+    }
+
+    private void SetPaymentFaults(bool enabled, double rate, int max, bool permanent, TimeSpan delay)
+    {
+        var services = _payments.Services;
+        var configuration = services.GetRequiredService<IConfiguration>();
+        configuration["FaultInjection:Enabled"] = enabled.ToString();
+        configuration["FaultInjection:TransientFailureRate"] = rate.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        configuration["FaultInjection:MaxTransientFailuresPerMessage"] = max.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        configuration["FaultInjection:PermanentFailure"] = permanent.ToString();
+        configuration["FaultInjection:Delay"] = delay.ToString("c", System.Globalization.CultureInfo.InvariantCulture);
+
+        // Monitor seçenekleri önbellekte tutar; temizlemek bir sonraki okumada güncel konfigürasyondan yeniden kurar.
+        services.GetRequiredService<IOptionsMonitorCache<FaultInjectionOptions>>().Clear();
+    }
+
+    private sealed class FaultScope(Action reset) : IDisposable
+    {
+        public void Dispose() => reset();
     }
 
     // --- Broker ------------------------------------------------------------------------------------------------
