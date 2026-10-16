@@ -1,0 +1,64 @@
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      opentelemetry:
+        patterns: ["OpenTelemetry*"]
+      testing:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk", "coverlet*", "Testcontainers*"]
+    ignore:
+      # LİSANS: MassTransit v9 ticaridir; proje v8 (Apache 2.0) hattında kalır (ADR-002). v9+ asla önerilmesin.
+      - dependency-name: "MassTransit*"
+        versions: [">=9.0.0"]
+      # Hedef framework net9.0: EF Core / ASP.NET Core / Extensions 10.x paketleri net10.0 ister.
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        versions: [">=10.0.0"]
+      - dependency-name: "Microsoft.AspNetCore.*"
+        versions: [">=10.0.0"]
+      - dependency-name: "Microsoft.Extensions.*"
+        versions: [">=10.0.0"]
+      - dependency-name: "Npgsql.EntityFrameworkCore.PostgreSQL"
+        versions: [">=10.0.0"]
+      - dependency-name: "Npgsql.OpenTelemetry"
+        versions: [">=10.0.0"]
+      - dependency-name: "dotnet-ef"
+        versions: [">=10.0.0"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  # Dockerfile'lar (taban imajlar: sdk / aspnet / runtime-deps). Hedef net9.0 olduğu için 10.x imajlar önerilmesin.
+  - package-ecosystem: docker
+    directories:
+      - "/src/Services/Ordering/Ordering.API"
+      - "/src/Services/Inventory/Inventory.API"
+      - "/src/Services/Payments/Payments.API"
+      - "/deploy/migrator"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "dotnet/sdk"
+        versions: [">=10.0.0"]
+      - dependency-name: "dotnet/aspnet"
+        versions: [">=10.0.0"]
+      - dependency-name: "dotnet/runtime-deps"
+        versions: [">=10.0.0"]
+
+  # docker-compose.yml imajları (postgres, rabbitmq, pgadmin, jaeger, prometheus).
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: weekly
+    ignore:
+      # Postgres/RabbitMQ major yükseltmesi veri/şema göçü gerektirir; bilinçli yapılır.
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "rabbitmq"
+        update-types: ["version-update:semver-major"]

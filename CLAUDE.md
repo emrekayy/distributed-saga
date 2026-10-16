@@ -74,6 +74,7 @@ DistributedSaga/
 ├── deploy/postgres/init/01-init-databases.sh   # İlk açılışta DB + kullanıcıları oluşturur
 ├── docker-compose.yml · .env.example (.env git'e girmez)
 ├── Directory.Build.props · Directory.Packages.props · global.json · .editorconfig
+├── .github/                                     # workflows/ci.yml (build+format, birim, entegrasyon, docker build) + dependabot.yml
 ├── scaffold.sh                                  # Solution iskeleti (idempotent)
 ├── dotnet-tools.json                            # Yerel araçlar: dotnet-ef 9.0.x
 └── DistributedSaga.sln
@@ -95,6 +96,7 @@ dotnet build DistributedSaga.sln -v q -clp:ErrorsOnly -nologo
 dotnet test DistributedSaga.sln -v q --nologo --filter "Category!=Integration"   # hızlı: birim testler (Docker gerekmez)
 dotnet test tests/IntegrationTests -v q --nologo --filter "Category=Integration"  # Testcontainers (Docker şart), tek collection, sıralı
 dotnet list DistributedSaga.sln package --outdated   # MassTransit'i yalnızca 8.x içinde güncelle
+dotnet format DistributedSaga.sln --verify-no-changes   # CI'daki format kapısı (private const/static readonly alanlar da _camelCase)
 
 # EF Core migration (Ordering)
 dotnet ef migrations add <Ad> -p src/Services/Ordering/Ordering.Infrastructure -s src/Services/Ordering/Ordering.API -o Persistence/Migrations
@@ -158,7 +160,7 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
 - [x] **Adım 5** — Entegrasyon/eşzamanlılık/hata testleri (Testcontainers, `tests/IntegrationTests`; Quartz entegrasyonu,
   stok/ödeme iadesi, 10 stoğa 50 paralel rezervasyon, Payments FaultInjection, outbox broker kesintisi); `docs/testing.md`
 
-- [ ] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar ✅ · 6b gözlemlenebilirlik ✅ · 6c CI · 6d README/LICENSE/secret taraması
+- [ ] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar ✅ · 6b gözlemlenebilirlik ✅ · 6c CI ✅ · 6d README/LICENSE/secret taraması
 
 Durum: build 0/0, 125 birim testi + 26 entegrasyon testi yeşil (Ordering 55, Inventory 19, Payments 20, Contracts 10, Messaging 21; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
 
