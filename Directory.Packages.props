@@ -24,7 +24,7 @@
     <!-- Saga timeout'ları: MassTransit.Quartz (in-process) + Postgres job store (order_db, "quartz" şeması). -->
     <PackageVersion Include="MassTransit.Quartz" Version="8.5.11" />
     <PackageVersion Include="Quartz" Version="3.22.6" />
-    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.22.6" />
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="4.5.1" />
     <PackageVersion Include="Quartz.Serialization.SystemTextJson" Version="3.22.6" />
   </ItemGroup>
 
