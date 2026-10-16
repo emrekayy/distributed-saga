@@ -59,6 +59,11 @@ new_project xunit Shared.Contracts.Tests tests/Shared.Contracts.Tests
 dotnet sln "$SLN.sln" add --solution-folder "tests" tests/Shared.Contracts.Tests
 dotnet add tests/Shared.Contracts.Tests reference src/BuildingBlocks/Shared.Contracts
 
+# Ortak mesajlaşma altyapısının testleri (retry kapsamı vb.)
+new_project xunit BuildingBlocks.Messaging.Tests tests/BuildingBlocks.Messaging.Tests
+dotnet sln "$SLN.sln" add --solution-folder "tests" tests/BuildingBlocks.Messaging.Tests
+dotnet add tests/BuildingBlocks.Messaging.Tests reference src/BuildingBlocks/BuildingBlocks.Messaging
+
 # --- Servisler (Clean Architecture: Domain <- Application <- Infrastructure <- API)
 for S in "${SERVICES[@]}"; do
   BASE="src/Services/$S"
@@ -80,7 +85,8 @@ for S in "${SERVICES[@]}"; do
   # Test projesi
   new_project xunit "$S.UnitTests" "tests/$S.UnitTests"
   dotnet sln "$SLN.sln" add --solution-folder "tests" "tests/$S.UnitTests"
-  dotnet add "tests/$S.UnitTests" reference "$BASE/$S.Domain" "$BASE/$S.Application"
+  # Messaging: saga/consumer testlerinde command endpoint eşlemeleri (CommandEndpoints.Map)
+  dotnet add "tests/$S.UnitTests" reference "$BASE/$S.Domain" "$BASE/$S.Application" src/BuildingBlocks/BuildingBlocks.Messaging
 done
 
 # --- Satır sonu / kodlama normalizasyonu --------------------------------------
