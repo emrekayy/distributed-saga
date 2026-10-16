@@ -1,28 +1,29 @@
-# CLAUDE.md — Distributed Saga
+# Geliştirici rehberi
 
-Production-ready "Dağıtık İşlem ve Saga Pattern" altyapısı (CV portfolyosu): **Ordering**, **Inventory** ve **Payments**
-servisleri; Ordering'deki MassTransit state machine ile orchestration saga, Transactional Outbox/Inbox, idempotent
-consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim RabbitMQ üzerinden; her servisin kendi Postgres DB'si var.
+Distributed Saga: **Ordering**, **Inventory** ve **Payments** servisleri; Ordering'deki MassTransit state machine ile
+orchestration saga, Transactional Outbox/Inbox, idempotent consumer'lar ve compensation (stok iadesi, ödeme iadesi).
+Tüm iletişim RabbitMQ üzerinden; her servisin kendi Postgres DB'si var. Genel bakış için [README](../README.md).
+Bu dosya projeyi geliştirenler içindir: değişmez teknik kurallar, klasör yapısı, komutlar, durum.
 
-## Ayrıntılı dokümanlar (gerektiğinde oku)
+## Ayrıntılı dokümanlar
 
-- Mesaj akışı ve contract kuralları: `docs/messaging.md` (contract'lara/kuyruk adlarına dokunmadan önce oku)
-- Saga: `docs/saga.md` (state diyagramı, geçiş matrisi, timeout/refund, concurrency; saga'yı değiştirmeden önce oku)
-- Ordering servisi: `docs/ordering-service.md` (API, domain kuralları, persistence, migration/konfigürasyon)
-- Inventory / Payments: `docs/inventory-service.md`, `docs/payments-service.md` (domain, consumer'lar, kilit sırası, API, seed)
-- Testler ve garantiler: `docs/testing.md` (hangi test hangi garantiyi kanıtlıyor; entegrasyon testi yöntemi, beklenen gürültü)
-- Kararlar ve gerekçeleri: `docs/decisions.md` (ADR; bir kararı değiştirmeden önce oku ve kullanıcıya sor)
-- Gözlemlenebilirlik: `docs/observability.md` (trace/metrik/log, `_error` kuyrukları ve redrive)
-- Bilinen tuzaklar: `docs/troubleshooting.md` (build/test/çalıştırma garip davranırsa önce buraya bak)
+- Mesaj akışı ve contract kuralları: [`messaging.md`](messaging.md) (contract'lara/kuyruk adlarına dokunmadan önce okuyun)
+- Saga: [`saga.md`](saga.md) (state diyagramı, geçiş matrisi, timeout/refund, concurrency; saga'yı değiştirmeden önce okuyun)
+- Ordering servisi: [`ordering-service.md`](ordering-service.md) (API, domain kuralları, persistence, migration/konfigürasyon)
+- Inventory / Payments: [`inventory-service.md`](inventory-service.md), `payments-service.md` (domain, consumer'lar, kilit sırası, API, seed)
+- Testler ve garantiler: [`testing.md`](testing.md) (hangi test hangi garantiyi kanıtlıyor; entegrasyon testi yöntemi, beklenen gürültü)
+- Kararlar ve gerekçeleri: [`decisions.md`](decisions.md) (ADR; bir kararı değiştirmeden önce okuyun ve tartışın)
+- Gözlemlenebilirlik: [`observability.md`](observability.md) (trace/metrik/log, `_error` kuyrukları ve redrive)
+- Bilinen tuzaklar: [`troubleshooting.md`](troubleshooting.md) (build/test/çalıştırma garip davranırsa önce buraya bakın)
 
-## Değişmez teknik kurallar (değiştirmeden önce kullanıcıya sor)
+## Değişmez teknik kurallar (değiştirmeden önce tartışın)
 
 - **Framework:** hedef `net9.0`; makinede yalnızca .NET 10 SDK/runtime var (`global.json` `rollForward: latestMajor`,
-  `RollForward=Major`). **.NET 9 SDK kurma.**
-- **MassTransit 8.x** (8.5.11). **v9 ticari lisanslı, ASLA v9'a yükseltme.** RabbitMQ transport, EF Core outbox/inbox.
+  `RollForward=Major`). **.NET 9 SDK kurmayın.**
+- **MassTransit 8.x** (8.5.11). **v9 ticari lisanslı, ASLA v9'a yükseltmeyin.** RabbitMQ transport, EF Core outbox/inbox.
 - **PostgreSQL + EF Core (Npgsql), code-first.** Database-per-service: `order_db`, `stock_db`, `payment_db`; her biri
   ayrı kullanıcıyla, yalnızca kendi DB'sine erişim (`.env.example`, `deploy/postgres/init/01-init-databases.sh`).
-- **Central Package Management:** sürümler **yalnızca** `Directory.Packages.props`'ta; `.csproj`'a `Version` yazma.
+- **Central Package Management:** sürümler **yalnızca** `Directory.Packages.props`'ta; `.csproj`'a `Version` yazmayın.
 - **Kalite kapısı:** `TreatWarningsAsErrors`, Nullable, `EnforceCodeStyleInBuild`; file-scoped namespace,
   private alanlar `_camelCase`, LF, BOM'suz UTF-8. Build 0 uyarı / 0 hata olmalı.
 - **Katmanlar:** `X.API → X.Infrastructure → X.Application → X.Domain`. Domain hiçbir projeye bağımlı değil;
@@ -35,20 +36,20 @@ consumer'lar ve compensation (stok iadesi, ödeme iadesi). Tüm iletişim Rabbit
   tip adları ve `QueueNames` değiştirilmez; contract'a yalnızca optional (non-required) alan eklenir.
   Contract dışı, kalıcı/schedule edilen mesajlar `[MessageUrn]` + `[EntityName]` ile sabitlenir (ADR-019).
 - **Idempotency:** MessageId tekrarı MassTransit Inbox (`InboxState`); üstüne iş anahtarları (unique index:
-  Payments `OrderId`, Inventory rezervasyon `OrderId`). Kendi "ProcessedMessages" tablonu yazma.
+  Payments `OrderId`, Inventory rezervasyon `OrderId`). Kendi "ProcessedMessages" tablonuzu yazmayın.
   Stok rezervasyonu ya hep ya hiç. Compensation komutları (`ReleaseStock`, `RefundPayment`) iş açısından başarısız
   olamaz: kayıt yoksa/zaten yapılmışsa da başarı event'i publish edilir.
 - **Retry:** consumer/saga endpoint'lerinde `UseMessageRetry(r => r.UseTransientDatabaseRetry(<domain exception>))`
   dışta, `UseEntityFrameworkOutbox<TDbContext>` içte.
 - **Eşzamanlılık:** Ordering optimistic (xmin) + retry; Inventory/Payments pessimistic (`SELECT … FOR UPDATE`, Inventory'de
   `ProductId` sırasıyla) ve outbox **ReadCommitted** (`AddMessaging(outboxIsolationLevel:)`). RepeatableRead + `FOR UPDATE`
-  yapma (40001 retry fırtınası). ADR-020. Hatalı girdi exception değil, kaydedilmiş `VALIDATION_ERROR` sonucudur.
-- **Para:** tüm servislerde `numeric(19,4)`; DbContext `ConfigureConventions` içinde `UseMoneyPrecision()`, tek tek `HasPrecision` yok.
+  yapmayın (40001 retry fırtınası). ADR-020. Hatalı girdi exception değil, kaydedilmiş `VALIDATION_ERROR` sonucudur.
+- **Para:** tüm servislerde `numeric(19,4)`; DbContext `ConfigureConventions` içinde `UseMoneyPrecision()`, tek tek `HasPrecision` yazılmaz.
 - **Zamanlayıcı:** MassTransit.Quartz + Postgres job store (`quartz` şeması). RabbitMQ delayed-exchange kullanılmaz.
 - **Migration:** startup'ta yalnızca Development'ta; production'da `dotnet ef migrations bundle` (compose'da `migrator` servisi, ADR-022).
   Secret'lar `.env`'de. **Demo bayrakları** `Seed:Enabled` ve `InternalEndpoints:Enabled` ortamdan bağımsız, varsayılan kapalı;
   Development ve compose demosunda açık. `FaultInjection` compose'da kapalı. **Container:** runtime `aspnet:9.0-noble-chiseled-extra`
-  (shell yok; healthcheck `--health-probe`), build `sdk:9.0`. Docker adımları için credential helper notuna bak (`docs/troubleshooting.md`).
+  (shell yok; healthcheck `--health-probe`), build `sdk:9.0`. Docker adımları için credential helper notuna bakın (`troubleshooting.md`).
 
 ## Klasör yapısı
 
@@ -67,7 +68,7 @@ DistributedSaga/
 ├── tests/            IntegrationTests (Testcontainers: Postgres + RabbitMQ, 3 API in-process)
 │                     Ordering.UnitTests · Inventory.UnitTests · Payments.UnitTests (→ Domain + Application + Messaging)
 │                     Shared.Contracts.Tests (sözleşme mimari testleri) · BuildingBlocks.Messaging.Tests (retry)
-├── docs/                                        # Ayrıntılar (yukarıdaki listeye bak)
+├── docs/                                        # Ayrıntılar (yukarıdaki listeye bakın)
 ├── scripts/verify-trace.sh                      # tek siparişin Jaeger'da 3 servisli TEK trace olduğunu doğrular
 ├── scripts/e2e.sh                               # 4 uçtan uca senaryo (dotnet run ya da --compose)
 ├── deploy/migrator/                             # EF migration bundle imajı + migrate.sh (init container)
@@ -92,7 +93,7 @@ cp .env.example .env
 ./scaffold.sh                       # idempotent: var olan projeleri atlar
 dotnet tool restore                 # dotnet-ef
 
-# Build / test (bkz. "Komut çıktısı")
+# Build / test (bkz. "Çıktıyı kısa tutma")
 dotnet build DistributedSaga.sln -v q -clp:ErrorsOnly -nologo
 dotnet test DistributedSaga.sln -v q --nologo --filter "Category!=Integration"   # hızlı: birim testler (Docker gerekmez)
 dotnet test tests/IntegrationTests -v q --nologo --filter "Category=Integration"  # Testcontainers (Docker şart), tek collection, sıralı
@@ -136,20 +137,14 @@ docker exec saga-rabbitmq rabbitmqctl list_queues -p saga name messages_ready co
 
 RabbitMQ UI: http://localhost:15672 (vhost `saga`) · PostgreSQL: `localhost:5432`.
 
-## Komut çıktısı
+## Çıktıyı kısa tutma
 
 - Build: `dotnet build DistributedSaga.sln -v q -clp:ErrorsOnly -nologo` (başarıda ~6 satır).
 - Test: `dotnet test DistributedSaga.sln -v q --nologo` (~18 satır). Yalnızca özet için
   `| grep -E "Toplam:|Başarısız [A-Z]|error"` (proje başına bir satır).
 - Yalnızca hata çıkarsa ilgili projeyi ayrıntılı çalıştır (örn. `dotnet test tests/Ordering.UnitTests --filter <Ad>`).
-- Uzun log'ları (`docker logs`, API log'u, `dotnet run` çıktısı) `grep`/`tail` ile filtrele; tamamını okuma.
-- Dosyaları gerektiği kadar oku (ilgili bölüm/satır aralığı); tüm solution'ı tarama, önce `docs/` ve klasör yapısına bak.
-
-## Compact instructions
-
-Compact sırasında koru: mevcut adımın kullanıcıyla kararlaştırılan kararları ve onaylanan plan, değiştirilen/eklenen
-dosyaların listesi, henüz commit'lenmemiş işler, başarısız testlerin adı ve hata mesajı, açık sorular.
-Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'ları, okunmuş dosya içerikleri (yolu yeterli).
+- Uzun log'ları (`docker logs`, API log'u, `dotnet run` çıktısı) `grep`/`tail` ile filtrele; tamamını okumayın.
+- Dosyaları gerektiği kadar okuyun (ilgili bölüm/satır aralığı); tüm solution'ı taramayın, önce `docs/` ve klasör yapısına bakın.
 
 ## Yol haritası ve durum
 
@@ -162,8 +157,6 @@ Atla: çözülmüş hataların tam çıktıları, başarılı build/test log'lar
   stok/ödeme iadesi, 10 stoğa 50 paralel rezervasyon, Payments FaultInjection, outbox broker kesintisi); `docs/testing.md`
 
 - [x] **Adım 6** — Production hazırlığı ve yayın: 6a container'lar · 6b gözlemlenebilirlik · 6c CI · 6d İngilizce README, LICENSE (MIT),
-  gitleaks taraması (`.gitleaks.toml`). GitHub'a push kullanıcıda; CI'ın gerçek koşusu push sonrası
+  gitleaks taraması (`.gitleaks.toml`). CI yeşil (GitHub Actions)
 
 Durum: build 0/0, 125 birim testi + 26 entegrasyon testi yeşil (Ordering 55, Inventory 19, Payments 20, Contracts 10, Messaging 21; IntegrationTests 26, ~40 sn); e2e 4/4 senaryo geçti.
-
-Bir sonraki adıma kullanıcı açıkça söylemeden geçme.

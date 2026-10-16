@@ -231,6 +231,8 @@ scripts/              e2e.sh (--compose) · verify-trace.sh
 docs/                 design notes, ADRs, test guide (Turkish)
 ```
 
+Developer guide (invariant rules, commands, project status): [`docs/development.md`](docs/development.md) (Turkish).
+
 ## What I'd do next
 
 - **Kubernetes:** Helm chart or Kustomize per service, the migrator as a pre-upgrade Job, readiness/liveness from the existing `/health/*`, HPA on queue depth, OTLP to a collector instead of straight to Jaeger/Prometheus.
