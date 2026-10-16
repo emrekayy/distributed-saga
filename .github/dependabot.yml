@@ -15,26 +15,28 @@ updates:
       # LİSANS: MassTransit v9 ticaridir; proje v8 (Apache 2.0) hattında kalır (ADR-002). v9+ asla önerilmesin.
       - dependency-name: "MassTransit*"
         versions: [">=9.0.0"]
-      # Hedef framework net9.0: EF Core / ASP.NET Core / Extensions 10.x paketleri net10.0 ister.
+      # Hedef framework net9.0: bu paket aileleri major'larını .NET sürümüyle birlikte çıkarır (10.x paketleri net10.0 ister).
+      # .NET 10'a geçiş ayrı ve bilinçli bir karardır (TargetFramework, SDK/runtime imajları, bu kurallar birlikte değişir);
+      # o zamana kadar yalnızca minor/patch önerilir.
       - dependency-name: "Microsoft.EntityFrameworkCore*"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql*"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.AspNetCore.*"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.Extensions.*"
-        versions: [">=10.0.0"]
-      - dependency-name: "Npgsql.EntityFrameworkCore.PostgreSQL"
-        versions: [">=10.0.0"]
-      - dependency-name: "Npgsql.OpenTelemetry"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
+      # dotnet-tools.json: dotnet-ef EF Core 9 ile aynı hatta kalır.
       - dependency-name: "dotnet-ef"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
 
-  # Dockerfile'lar (taban imajlar: sdk / aspnet / runtime-deps). Hedef net9.0 olduğu için 10.x imajlar önerilmesin.
+  # Dockerfile'lar (taban imajlar: sdk / aspnet / runtime-deps). Hedef net9.0 olduğu için .NET imajlarının major
+  # güncellemesi (10.x) önerilmesin; .NET 10'a geçiş ayrı bir karardır.
   - package-ecosystem: docker
     directories:
       - "/src/Services/Ordering/Ordering.API"
@@ -45,11 +47,11 @@ updates:
       interval: weekly
     ignore:
       - dependency-name: "dotnet/sdk"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
       - dependency-name: "dotnet/aspnet"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
       - dependency-name: "dotnet/runtime-deps"
-        versions: [">=10.0.0"]
+        update-types: ["version-update:semver-major"]
 
   # docker-compose.yml imajları (postgres, rabbitmq, pgadmin, jaeger, prometheus).
   - package-ecosystem: docker-compose
