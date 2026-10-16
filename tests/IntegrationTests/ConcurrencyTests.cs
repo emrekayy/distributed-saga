@@ -79,7 +79,7 @@ public sealed class ConcurrencyTests(IntegrationFixture fixture)
         var orderIds = Enumerable.Range(0, 60).Select(_ => Guid.NewGuid()).ToList();
 
         var deadlocksBefore = await fixture.DeadlockCountAsync("stock_db");
-        var observedBefore = fixture.InventoryConsumers.FaultsWithSqlState("40P01");
+        var observedBefore = fixture.InventoryDbFailures.Count("40P01");
 
         await Task.WhenAll(orderIds.Select((orderId, i) =>
         {
@@ -97,8 +97,8 @@ public sealed class ConcurrencyTests(IntegrationFixture fixture)
             Assert.Equal(940, await db.Products.AsNoTracking().Where(p => p.Id == id).Select(p => p.AvailableQuantity).SingleAsync());
         }
 
-        // Retry deadlock'u gizleyebileceği için iki ayrı kanıt: consumer'a sızan 40P01 hatası ve DB'nin deadlock sayacı.
-        Assert.Equal(observedBefore, fixture.InventoryConsumers.FaultsWithSqlState("40P01"));
+        // Retry deadlock'u gizleyebileceği için iki ayrı kanıt: EF'in gördüğü her 40P01 komut hatası ve DB'nin deadlock sayacı.
+        Assert.Equal(observedBefore, fixture.InventoryDbFailures.Count("40P01"));
         Assert.Equal(deadlocksBefore, await fixture.DeadlockCountAsync("stock_db"));
     }
 
