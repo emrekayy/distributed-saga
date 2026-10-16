@@ -47,10 +47,18 @@ grep -qxF ".env" .gitignore || printf "\n# Yerel secret'lar\n.env\n" >> .gitigno
 # BuildingBlocks.Messaging: MassTransit/RabbitMQ/Outbox ortak konfigürasyonu
 new_project classlib Shared.Contracts         src/BuildingBlocks/Shared.Contracts
 new_project classlib BuildingBlocks.Messaging src/BuildingBlocks/BuildingBlocks.Messaging
+# BuildingBlocks.Web     : ortak ASP.NET Core parçaları (health endpoint'leri, ProblemDetails tabanı);
+#                          yalnızca FrameworkReference, NuGet paketi yok
+new_project classlib BuildingBlocks.Web       src/BuildingBlocks/BuildingBlocks.Web
+if ! grep -q 'Microsoft.AspNetCore.App' src/BuildingBlocks/BuildingBlocks.Web/BuildingBlocks.Web.csproj; then
+  perl -0pi -e 's#</Project>#  <ItemGroup>\n    <FrameworkReference Include="Microsoft.AspNetCore.App" />\n  </ItemGroup>\n\n</Project>#' \
+    src/BuildingBlocks/BuildingBlocks.Web/BuildingBlocks.Web.csproj
+fi
 
 dotnet sln "$SLN.sln" add --solution-folder "src/BuildingBlocks" \
   src/BuildingBlocks/Shared.Contracts \
-  src/BuildingBlocks/BuildingBlocks.Messaging
+  src/BuildingBlocks/BuildingBlocks.Messaging \
+  src/BuildingBlocks/BuildingBlocks.Web
 
 dotnet add src/BuildingBlocks/BuildingBlocks.Messaging reference src/BuildingBlocks/Shared.Contracts
 
@@ -80,7 +88,7 @@ for S in "${SERVICES[@]}"; do
   # Bağımlılık yönü içe doğru; Domain hiçbir şeye bağlı değil.
   dotnet add "$BASE/$S.Application"    reference "$BASE/$S.Domain" src/BuildingBlocks/Shared.Contracts
   dotnet add "$BASE/$S.Infrastructure" reference "$BASE/$S.Application" src/BuildingBlocks/BuildingBlocks.Messaging
-  dotnet add "$BASE/$S.API"            reference "$BASE/$S.Application" "$BASE/$S.Infrastructure"
+  dotnet add "$BASE/$S.API"            reference "$BASE/$S.Application" "$BASE/$S.Infrastructure" src/BuildingBlocks/BuildingBlocks.Web
 
   # Test projesi
   new_project xunit "$S.UnitTests" "tests/$S.UnitTests"

@@ -21,7 +21,6 @@ internal sealed class OrderStateConfiguration : IEntityTypeConfiguration<OrderSt
         builder.HasIndex(x => x.CurrentState);
 
         builder.Property(x => x.Currency).HasMaxLength(3).IsFixedLength();
-        builder.Property(x => x.TotalAmount).HasPrecision(19, 4);
         builder.Property(x => x.FailureReasonCode).HasMaxLength(64);
         builder.Property(x => x.FailureReason).HasMaxLength(1000);
 

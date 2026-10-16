@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="MassTransit" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Inventory.Domain\Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Shared.Contracts\Shared.Contracts.csproj" />
   </ItemGroup>

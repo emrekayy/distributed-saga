@@ -15,7 +15,6 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Id).ValueGeneratedNever();
 
         builder.Property(o => o.Currency).HasMaxLength(3).IsFixedLength();
-        builder.Property(o => o.TotalAmount).HasPrecision(19, 4);
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16);
         builder.Property(o => o.ReasonCode).HasMaxLength(64);
         builder.Property(o => o.Reason).HasMaxLength(1000);
@@ -32,7 +31,6 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             items.ToTable("OrderItems");
             items.WithOwner().HasForeignKey("OrderId");
             items.HasKey("OrderId", nameof(OrderItem.ProductId));
-            items.Property(i => i.UnitPrice).HasPrecision(19, 4);
             items.Ignore(i => i.LineTotal);
         });
         builder.Navigation(o => o.Items).UsePropertyAccessMode(PropertyAccessMode.Field);

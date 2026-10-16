@@ -1,17 +1,22 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Ordering.API.Endpoints;
+namespace BuildingBlocks.Web;
 
 public static class HealthEndpoints
 {
+    /// <summary>
+    /// <c>/health/live</c>: process ayakta mı; bağımlılık kontrolü yok (aksi halde DB kesintisi pod restart'ına yol açar).
+    /// <c>/health/ready</c>: "ready" etiketli kontroller (Postgres + RabbitMQ bus).
+    /// </summary>
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
-        // Liveness: process ayakta mı; bağımlılık kontrolü yok (aksi halde DB kesintisi pod restart'ına yol açar).
         app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 
-        // Readiness: Postgres + RabbitMQ (MassTransit bus) hazır mı.
         app.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains("ready"),

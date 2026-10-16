@@ -1,3 +1,4 @@
+using BuildingBlocks.Messaging.Persistence;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Saga;
@@ -14,6 +15,9 @@ public sealed class OrderDbContext(DbContextOptions<OrderDbContext> options) : D
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderState> OrderStates => Set<OrderState>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
+        configurationBuilder.UseMoneyPrecision();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
