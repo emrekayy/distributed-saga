@@ -15,7 +15,7 @@
       Güncel 8.x yamasını görmek için "dotnet list package" komutunu outdated
       seçeneğiyle çalıştırın (XML yorumunda çift tire kullanılamaz).
     -->
-    <PackageVersion Include="MassTransit" Version="8.5.11" />
+    <PackageVersion Include="MassTransit" Version="8.5.12" />
     <PackageVersion Include="MassTransit.RabbitMQ" Version="8.5.11" />
     <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.11" />
   </ItemGroup>
