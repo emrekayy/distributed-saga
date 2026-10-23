@@ -112,7 +112,7 @@ services:
   # değişirse volume'daki kuyruklar "kaybolmuş" gibi görünür.
   # ---------------------------------------------------------------------------
   rabbitmq:
-    image: rabbitmq:4.1.8-management-alpine
+    image: rabbitmq:4.3.6-management-alpine
     container_name: saga-rabbitmq
     hostname: saga-rabbitmq
     restart: unless-stopped
