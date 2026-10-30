@@ -268,7 +268,7 @@ services:
       - saga-net
 
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.15.1
     container_name: saga-prometheus
     profiles: ["observability"]
     restart: unless-stopped
