@@ -143,7 +143,7 @@ services:
   # http://localhost:5050
   # ---------------------------------------------------------------------------
   pgadmin:
-    image: dpage/pgadmin4:9.18.0
+    image: dpage/pgadmin4:9.19.0
     container_name: saga-pgadmin
     profiles: ["tools"]
     restart: unless-stopped
