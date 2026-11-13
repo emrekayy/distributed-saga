@@ -256,7 +256,7 @@ services:
   #   Prometheus http://localhost:9090    (metrik: .NET, MassTransit, RabbitMQ kuyrukları; uyarı kuralları)
   # ---------------------------------------------------------------------------
   jaeger:
-    image: jaegertracing/jaeger:2.22.0
+    image: jaegertracing/jaeger:2.23.0
     container_name: saga-jaeger
     profiles: ["observability"]
     restart: unless-stopped
