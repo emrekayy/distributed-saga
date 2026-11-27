@@ -64,7 +64,7 @@ services:
   # managed service'e taşınabilir, connection string dışında kod değişmez.
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:17.11-alpine
+    image: postgres:17.12-alpine
     container_name: saga-postgres
     restart: unless-stopped
     environment:
